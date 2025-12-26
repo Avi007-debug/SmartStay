@@ -6,6 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TravelTimeEstimator } from "@/components/ai/TravelTimeEstimator";
+import { toast } from "@/hooks/use-toast";
 import {
   MapPin,
   Star,
@@ -28,13 +33,45 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Bell,
+  ExternalLink,
+  AlertCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 
 const PGDetail = () => {
   const [currentImage, setCurrentImage] = useState(0);
+  const [vacancyAlertEnabled, setVacancyAlertEnabled] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const totalImages = 5;
+
+  const handleVacancyAlertToggle = () => {
+    setVacancyAlertEnabled(!vacancyAlertEnabled);
+    toast({
+      title: vacancyAlertEnabled ? "Alert Disabled" : "Alert Enabled",
+      description: vacancyAlertEnabled 
+        ? "You will no longer receive vacancy alerts for this PG" 
+        : "You'll be notified when a room becomes available",
+    });
+  };
+
+  const handleSave = () => {
+    setIsSaved(!isSaved);
+    toast({
+      title: isSaved ? "Removed from Saved" : "Saved Successfully",
+      description: isSaved 
+        ? "This PG has been removed from your saved list" 
+        : "You can view this PG anytime in your dashboard",
+    });
+  };
+
+  const handleReport = () => {
+    toast({
+      title: "Report Submitted",
+      description: "Thank you for reporting. We'll review this listing shortly.",
+    });
+  };
 
   const amenities = [
     { icon: Wifi, label: "High-Speed Wi-Fi" },
@@ -155,12 +192,37 @@ const PGDetail = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="icon">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon">
-                    <Heart className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Share this PG</TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={handleSave}
+                        className={isSaved ? "text-red-500" : ""}
+                      >
+                        <Heart className={`h-4 w-4 ${isSaved ? "fill-red-500" : ""}`} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isSaved ? "Remove from Saved" : "Save this PG"}</TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="icon" onClick={handleReport}>
+                        <Flag className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Report an issue</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </div>
@@ -172,6 +234,8 @@ const PGDetail = () => {
               <TabsList className="w-full justify-start">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
+                <TabsTrigger value="availability">Availability</TabsTrigger>
+                <TabsTrigger value="travel">Travel Time</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
                 <TabsTrigger value="qna">Q&A</TabsTrigger>
               </TabsList>
@@ -234,6 +298,81 @@ const PGDetail = () => {
                       Based on 42 reviews, students highly appreciate the <strong>food quality</strong> and <strong>cleanliness</strong>. 
                       Some concerns mentioned about <strong>Wi-Fi speed</strong> during evening hours. Overall sentiment: <strong className="text-success">Very Positive</strong>
                     </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="availability" className="space-y-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-6">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Room Availability</h3>
+                        <p className="text-muted-foreground">Get notified when a room becomes available</p>
+                      </div>
+                      <Badge className="bg-success text-success-foreground">3 Beds Available</Badge>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="p-4 bg-accent/10 border border-accent rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Bell className="h-5 w-5 text-accent" />
+                            <Label htmlFor="vacancy-alert" className="font-medium cursor-pointer">
+                              Vacancy Alert
+                            </Label>
+                          </div>
+                          <Switch 
+                            id="vacancy-alert" 
+                            checked={vacancyAlertEnabled}
+                            onCheckedChange={handleVacancyAlertToggle}
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {vacancyAlertEnabled 
+                            ? "You'll receive instant notifications when rooms become available" 
+                            : "Enable to get notified about new vacancies"}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 border rounded-lg">
+                          <p className="text-sm text-muted-foreground mb-1">Room Type</p>
+                          <p className="font-semibold">2-3 Sharing</p>
+                        </div>
+                        <div className="p-4 border rounded-lg">
+                          <p className="text-sm text-muted-foreground mb-1">Total Capacity</p>
+                          <p className="font-semibold">10 Beds</p>
+                        </div>
+                        <div className="p-4 border rounded-lg">
+                          <p className="text-sm text-muted-foreground mb-1">Occupied</p>
+                          <p className="font-semibold">7 Beds</p>
+                        </div>
+                        <div className="p-4 border rounded-lg">
+                          <p className="text-sm text-muted-foreground mb-1">Available</p>
+                          <p className="font-semibold text-success">3 Beds</p>
+                        </div>
+                      </div>
+
+                      {!vacancyAlertEnabled && (
+                        <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
+                          <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                          <div className="text-sm text-muted-foreground">
+                            <p className="font-medium mb-1">Don't miss out!</p>
+                            <p>Enable vacancy alerts to be the first to know when rooms become available at this PG.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="travel" className="space-y-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-lg mb-4">Travel Time Estimator</h3>
+                    <TravelTimeEstimator pgLocation="Kamla Nagar, Delhi" />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -316,6 +455,27 @@ const PGDetail = () => {
                 </Button>
               </TabsContent>
             </Tabs>
+
+            {/* WhatsApp Community Section */}
+            <Card className="mt-6 border-2 border-green-500/20 bg-green-500/5">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10 shrink-0">
+                    <MessageCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-2">Join WhatsApp Community</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Connect with current and prospective residents. Get instant updates, share experiences, and ask questions directly in the community group.
+                    </p>
+                    <Button variant="outline" className="border-green-500 text-green-700 hover:bg-green-50">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Join WhatsApp Group
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}

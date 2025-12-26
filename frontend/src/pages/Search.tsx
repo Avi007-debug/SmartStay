@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Star, Shield, Wifi, UtensilsCrossed, Droplets, Home, SlidersHorizontal, MessageCircle, Heart, Building2, Clock, Sparkles, Bell } from "lucide-react";
+import { MapPin, Star, Shield, Wifi, UtensilsCrossed, Droplets, Home, SlidersHorizontal, MessageCircle, Heart, Building2, Clock, Sparkles, Bell, SearchX } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -165,11 +165,35 @@ const Search = () => {
           <div className="flex-1">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-muted-foreground">{pgListings.length} properties found</p>
-              <Button variant="outline" size="sm"><Bell className="h-4 w-4 mr-2" />Set Alert</Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Bell className="h-4 w-4 mr-2" />
+                    Set Alert
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Get notified when new PGs match your criteria</TooltipContent>
+              </Tooltip>
             </div>
             
             <div className="space-y-4">
-              {pgListings.map((pg) => (
+              {pgListings.length === 0 ? (
+                /* Empty State */
+                <Card className="border-dashed">
+                  <CardContent className="p-12 text-center">
+                    <SearchX className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
+                    <h3 className="text-xl font-semibold mb-2">No PGs Found</h3>
+                    <p className="text-muted-foreground mb-6">
+                      Try adjusting your filters or search criteria to find more options
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                      <Button variant="outline">Clear Filters</Button>
+                      <Button variant="default">Browse All PGs</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                pgListings.map((pg) => (
                 <Card key={pg.id} className={`overflow-hidden hover-lift border-2 transition-all ${pg.available ? 'hover:border-primary' : 'opacity-75'}`}>
                   <div className="flex flex-col md:flex-row">
                     <div className="md:w-72 h-48 md:h-auto bg-muted relative shrink-0">
@@ -215,7 +239,8 @@ const Search = () => {
                     </div>
                   </div>
                 </Card>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </div>

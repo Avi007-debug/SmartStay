@@ -13,11 +13,12 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HiddenChargeDetector } from "@/components/ai/HiddenChargeDetector";
 import { SentimentSummary } from "@/components/ai/SentimentSummary";
 import { 
   Upload, CheckCircle, AlertCircle, Image, MapPin, DollarSign, 
-  Bed, Clock, Shield, Sparkles, Eye, Building2, Phone, Users
+  Bed, Clock, Shield, Sparkles, Eye, Building2, Phone, Users, HelpCircle
 } from "lucide-react";
 
 const PostRoom = () => {

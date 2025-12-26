@@ -1,11 +1,33 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Users, Building2, Shield, Flag, Search, CheckCircle, XCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Users, Building2, Shield, Flag, Search, CheckCircle, XCircle, 
+  Eye, MoreHorizontal, FileText, AlertTriangle, ExternalLink, Download
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
   const users = [
@@ -191,9 +213,60 @@ const AdminDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Flagged Content</CardTitle>
+                <CardDescription>Review and manage reported listings and users</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Review and manage reported listings and users.</p>
+              <CardContent className="space-y-4">
+                {[
+                  { id: 1, type: "Listing", title: "Sunshine PG", reason: "Misleading information", reporter: "User #1234", date: "2 hours ago", status: "pending" },
+                  { id: 2, type: "Review", title: "Inappropriate language in review", reason: "Spam/Abuse", reporter: "User #5678", date: "1 day ago", status: "pending" },
+                  { id: 3, type: "User", title: "Suspicious owner activity", reason: "Fraudulent behavior", reporter: "User #9012", date: "2 days ago", status: "resolved" },
+                ].map((report) => (
+                  <Card key={report.id} className="border-2">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary">{report.type}</Badge>
+                            <Badge variant={report.status === "pending" ? "destructive" : "default"}>
+                              {report.status}
+                            </Badge>
+                          </div>
+                          <h4 className="font-semibold mb-1">{report.title}</h4>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            <strong>Reason:</strong> {report.reason}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Reported by {report.reporter} • {report.date}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            Review
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => toast({ title: "Report dismissed" })}>
+                                Dismiss Report
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toast({ title: "Warning sent" })}>
+                                Warn User
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">
+                                Remove Content
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>
@@ -202,9 +275,123 @@ const AdminDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Verification Queue</CardTitle>
+                <CardDescription>Review pending verification requests from property owners</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Review pending verification requests from property owners.</p>
+              <CardContent className="space-y-4">
+                {[
+                  { 
+                    id: 1, 
+                    ownerName: "Rajesh Kumar", 
+                    property: "Sunshine PG", 
+                    submittedDate: "1 day ago",
+                    documents: ["Trade License", "Occupancy Certificate", "Fire NOC"],
+                    status: "pending"
+                  },
+                  { 
+                    id: 2, 
+                    ownerName: "Priya Sharma", 
+                    property: "Green Valley Hostel", 
+                    submittedDate: "3 days ago",
+                    documents: ["Trade License", "Shop Registration"],
+                    status: "pending"
+                  },
+                ].map((request) => (
+                  <Card key={request.id} className="border-2">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback>{request.ownerName[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg">{request.ownerName}</h4>
+                            <p className="text-sm text-muted-foreground mb-1">{request.property}</p>
+                            <p className="text-xs text-muted-foreground">Submitted {request.submittedDate}</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary">{request.status}</Badge>
+                      </div>
+
+                      <Separator className="my-4" />
+
+                      <div className="space-y-3 mb-4">
+                        <h5 className="font-medium text-sm">Submitted Documents:</h5>
+                        {request.documents.map((doc, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary" />
+                              <span className="text-sm font-medium">{doc}</span>
+                            </div>
+                            <Button variant="ghost" size="sm">
+                              <Download className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full mb-2">
+                            <Eye className="h-4 w-4 mr-2" />
+                            Review Documents
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                          <DialogHeader>
+                            <DialogTitle>Verification Review</DialogTitle>
+                            <DialogDescription>
+                              Review submitted documents and approve or reject the verification request
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 my-4">
+                            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                              <FileText className="h-16 w-16 text-muted-foreground" />
+                            </div>
+                            <Textarea placeholder="Add notes or reasons for decision..." rows={3} />
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline">
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject
+                            </Button>
+                            <Button variant="default" onClick={() => toast({ title: "Verification approved!" })}>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="default" 
+                          className="flex-1"
+                          onClick={() => toast({ title: "Verification approved", description: "Owner has been notified" })}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          className="flex-1"
+                          onClick={() => toast({ title: "Verification rejected", variant: "destructive" })}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {/* Empty State */}
+                {false && (
+                  <div className="text-center py-12">
+                    <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+                    <p className="text-muted-foreground">No pending verification requests</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
