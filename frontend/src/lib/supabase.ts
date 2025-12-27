@@ -1,0 +1,576 @@
+// Supabase Client Configuration
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Check your .env file.')
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// ============================================
+// AUTHENTICATION SERVICE
+// ============================================
+export const authService = {
+  // Sign up new user
+  async signUp(email: string, password: string, fullName: string, role: 'user' | 'owner', phone?: string) {
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+          phone: phone || null,
+        },
+      },
+    })
+
+    if (authError) throw authError
+
+    // Profile will be auto-created by handle_new_user trigger
+    return authData
+  },
+
+  // Sign in
+  async signIn(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) throw error
+    return data
+  },
+
+  // Sign out
+  async signOut() {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+  },
+
+  // Get current user with profile
+  async getCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) return null
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    return { ...user, profile }
+  },
+}
+
+// ============================================
+// PG LISTINGS SERVICE
+// ============================================
+export const pgService = {
+  // Get all PG listings with filters
+  async getAll(filters?: {
+    city?: string
+    minRent?: number
+    maxRent?: number
+    gender?: string
+    amenities?: string[]
+    verified?: boolean
+    available?: boolean
+    maxDistance?: number
+  }) {
+    let query = supabase.from('pg_listings').select(`
+      *,
+      owner:profiles!owner_id(full_name, email, phone, is_verified)
+    `).eq('status', 'active')
+
+    if (filters?.city) {
+      query = query.eq('address->>city', filters.city)
+    }
+    if (filters?.minRent) {
+      query = query.gte('rent', filters.minRent)
+    }
+    if (filters?.maxRent) {
+      query = query.lte('rent', filters.maxRent)
+    }
+    if (filters?.gender) {
+      query = query.eq('gender', filters.gender)
+    }
+    if (filters?.verified) {
+      query = query.eq('is_verified', true)
+    }
+    if (filters?.available) {
+      query = query.eq('is_available', true).gt('available_beds', 0)
+    }
+    if (filters?.maxDistance) {
+      query = query.lte('distance_from_college', filters.maxDistance)
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+    return data
+  },
+
+  // Get single PG by ID
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .select(`
+        *,
+        owner:profiles!owner_id(full_name, email, phone, is_verified)
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+
+    // Increment view count
+    await supabase.rpc('increment_views', { pg_id: id })
+
+    return data
+  },
+
+  // Create new listing (owner only)
+  async create(listing: any) {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .insert({
+        ...listing,
+        owner_id: user?.id,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Update listing
+  async update(id: string, updates: any) {
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Toggle availability
+  async toggleAvailability(id: string, availableBeds: number) {
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .update({
+        available_beds: availableBeds,
+        is_available: availableBeds > 0,
+        last_availability_update: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+}
+
+// ============================================
+// SAVED PGs SERVICE
+// ============================================
+export const savedPGsService = {
+  // Get user's saved PGs
+  async getAll() {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('saved_pgs')
+      .select(`
+        *,
+        pg:pg_listings(*)
+      `)
+      .eq('user_id', user?.id)
+
+    if (error) throw error
+    return data
+  },
+
+  // Save a PG
+  async save(pgId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('saved_pgs')
+      .insert({
+        user_id: user?.id,
+        pg_id: pgId,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Unsave a PG
+  async unsave(pgId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { error } = await supabase
+      .from('saved_pgs')
+      .delete()
+      .eq('user_id', user?.id)
+      .eq('pg_id', pgId)
+
+    if (error) throw error
+  },
+
+  // Check if PG is saved
+  async isSaved(pgId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('saved_pgs')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('pg_id', pgId)
+      .single()
+
+    return !error && !!data
+  },
+}
+
+// ============================================
+// REVIEWS SERVICE
+// ============================================
+export const reviewsService = {
+  // Get reviews for a PG
+  async getByPGId(pgId: string) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        user:profiles!user_id(full_name)
+      `)
+      .eq('pg_id', pgId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Create review
+  async create(pgId: string, review: {
+    rating: number
+    title?: string
+    review_text: string
+    cleanliness_rating?: number
+    food_rating?: number
+    is_anonymous?: boolean
+  }) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert({
+        pg_id: pgId,
+        user_id: user?.id,
+        ...review,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Vote on review
+  async vote(reviewId: string, voteType: 'up' | 'down') {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Check if already voted
+    const { data: existingVote } = await supabase
+      .from('review_votes')
+      .select('*')
+      .eq('review_id', reviewId)
+      .eq('user_id', user?.id)
+      .single()
+
+    if (existingVote) {
+      // Update vote
+      await supabase
+        .from('review_votes')
+        .update({ vote_type: voteType })
+        .eq('review_id', reviewId)
+        .eq('user_id', user?.id)
+    } else {
+      // Insert new vote
+      await supabase
+        .from('review_votes')
+        .insert({
+          review_id: reviewId,
+          user_id: user?.id,
+          vote_type: voteType,
+        })
+    }
+
+    // Update vote counts
+    await supabase.rpc('update_review_votes', { review_id: reviewId })
+  },
+}
+
+// ============================================
+// CHAT SERVICE
+// ============================================
+export const chatService = {
+  // Get user's chats
+  async getAll() {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('chats')
+      .select(`
+        *,
+        pg:pg_listings(name, id),
+        owner:profiles!owner_id(full_name),
+        user:profiles!user_id(full_name)
+      `)
+      .or(`user_id.eq.${user?.id},owner_id.eq.${user?.id}`)
+      .order('last_message_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Create or get existing chat
+  async createOrGet(pgId: string, ownerId: string, isAnonymous = true) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Check if chat already exists
+    const { data: existingChat } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('pg_id', pgId)
+      .eq('user_id', user?.id)
+      .eq('owner_id', ownerId)
+      .single()
+
+    if (existingChat) return existingChat
+
+    // Create new chat
+    const { data, error } = await supabase
+      .from('chats')
+      .insert({
+        pg_id: pgId,
+        user_id: user?.id,
+        owner_id: ownerId,
+        is_anonymous: isAnonymous,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Get messages for a chat
+  async getMessages(chatId: string) {
+    const { data, error } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        sender:profiles!sender_id(full_name)
+      `)
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return data
+  },
+
+  // Send message
+  async sendMessage(chatId: string, messageText: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        chat_id: chatId,
+        sender_id: user?.id,
+        message_text: messageText,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Subscribe to new messages
+  subscribeToMessages(chatId: string, callback: (message: any) => void) {
+    return supabase
+      .channel(`messages-${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${chatId}`,
+        },
+        (payload) => callback(payload.new)
+      )
+      .subscribe()
+  },
+}
+
+// ============================================
+// NOTIFICATIONS SERVICE
+// ============================================
+export const notificationsService = {
+  // Get user's notifications
+  async getAll() {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Mark as read
+  async markAsRead(notificationId: string) {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('id', notificationId)
+
+    if (error) throw error
+  },
+
+  // Subscribe to new notifications
+  async subscribeToNotifications(callback: (notification: any) => void) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return null
+
+    return supabase
+      .channel('notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => callback(payload.new)
+      )
+      .subscribe()
+  },
+}
+
+// ============================================
+// VACANCY ALERTS SERVICE
+// ============================================
+export const vacancyAlertsService = {
+  // Toggle alert for a PG
+  async toggle(pgId: string, enabled: boolean) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (enabled) {
+      const { data, error } = await supabase
+        .from('vacancy_alerts')
+        .upsert({
+          user_id: user?.id,
+          pg_id: pgId,
+          is_enabled: true,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } else {
+      const { error } = await supabase
+        .from('vacancy_alerts')
+        .delete()
+        .eq('user_id', user?.id)
+        .eq('pg_id', pgId)
+
+      if (error) throw error
+    }
+  },
+
+  // Check if alert is enabled
+  async isEnabled(pgId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data } = await supabase
+      .from('vacancy_alerts')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('pg_id', pgId)
+      .eq('is_enabled', true)
+      .single()
+
+    return !!data
+  },
+}
+
+// ============================================
+// USER PREFERENCES SERVICE
+// ============================================
+export const preferencesService = {
+  // Update user preferences
+  async update(preferences: any) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ preferences })
+      .eq('id', user?.id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Get user preferences
+  async get() {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('preferences')
+      .eq('id', user?.id)
+      .single()
+
+    if (error) throw error
+    return data?.preferences
+  },
+}
+
+// Export all services
+export default {
+  auth: authService,
+  pgs: pgService,
+  savedPGs: savedPGsService,
+  reviews: reviewsService,
+  chat: chatService,
+  notifications: notificationsService,
+  vacancyAlerts: vacancyAlertsService,
+  preferences: preferencesService,
+}

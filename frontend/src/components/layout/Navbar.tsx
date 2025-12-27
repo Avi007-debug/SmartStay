@@ -50,10 +50,8 @@ export const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-hero">
-              <Building2 className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-foreground">StayFinder</span>
+            <img src="/image.png" alt="SmartStay" className="h-10 w-10 rounded-lg" />
+            <span className="text-xl font-bold text-foreground">SmartStay</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -154,11 +152,8 @@ export const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline" asChild>
-              <Link to="/auth">Login</Link>
-            </Button>
             <Button variant="accent" asChild>
-              <Link to="/auth">Sign Up</Link>
+              <Link to="/auth">Sign In</Link>
             </Button>
           </div>
 
@@ -187,11 +182,8 @@ export const Navbar = () => {
                   </Link>
                 ))}
                 <div className="pt-4 border-t space-y-2">
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link to="/auth" onClick={() => setIsOpen(false)}>Login</Link>
-                  </Button>
                   <Button variant="accent" className="w-full" asChild>
-                    <Link to="/auth" onClick={() => setIsOpen(false)}>Sign Up</Link>
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>Sign In</Link>
                   </Button>
                 </div>
               </div>

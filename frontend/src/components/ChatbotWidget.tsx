@@ -8,7 +8,7 @@ import { MessageCircle, X, Send } from "lucide-react";
 export const ChatbotWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { id: 1, text: "Hi! I'm your StayFinder assistant. How can I help you today?", sender: "bot" },
+    { id: 1, text: "Hi! I'm your SmartStay assistant. How can I help you today?", sender: "bot" },
   ]);
   const [input, setInput] = useState("");
 
@@ -49,7 +49,7 @@ export const ChatbotWidget = () => {
         <Card className="fixed bottom-6 right-6 w-96 h-[500px] shadow-2xl border-2 z-50 flex flex-col animate-scale-in">
           <CardHeader className="gradient-hero text-white rounded-t-lg">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">StayFinder Assistant</CardTitle>
+              <CardTitle className="text-lg">SmartStay Assistant</CardTitle>
               <Button
                 variant="ghost"
                 size="icon"

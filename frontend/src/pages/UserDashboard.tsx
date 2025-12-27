@@ -15,11 +15,46 @@ import { RecommendationCard } from "@/components/ai/RecommendationCard";
 import { TravelTimeEstimator } from "@/components/ai/TravelTimeEstimator";
 import { VacancyAlertSettings } from "@/components/ai/VacancyAlertSettings";
 import { AnonymousChatInterface } from "@/components/chat/AnonymousChatInterface";
+import { OnboardingTour, useOnboardingTour } from "@/components/OnboardingTour";
 import { Heart, Clock, Star, Bell, MessageCircle, User, MapPin, Building2, Sparkles, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const UserDashboard = () => {
   const [budget, setBudget] = useState([5000, 15000]);
+  const { shouldShowTour } = useOnboardingTour("user-dashboard");
+
+  const userDashboardTour = [
+    {
+      target: "[data-tour='stats']",
+      title: "Your Activity Stats",
+      description: "Quick overview of your saved PGs, recently viewed listings, and active notifications.",
+      placement: "bottom" as const,
+    },
+    {
+      target: "[data-tour='recommendations']",
+      title: "AI-Powered Recommendations",
+      description: "Get personalized PG suggestions based on your preferences and search history.",
+      placement: "bottom" as const,
+    },
+    {
+      target: "[data-tour='saved']",
+      title: "Saved PGs",
+      description: "Access all your bookmarked properties in one place.",
+      placement: "top" as const,
+    },
+    {
+      target: "[data-tour='chats']",
+      title: "Anonymous Chat",
+      description: "Communicate with owners without revealing your identity initially.",
+      placement: "top" as const,
+    },
+    {
+      target: "[data-tour='preferences']",
+      title: "Set Your Preferences",
+      description: "Customize your search criteria to get better recommendations.",
+      placement: "top" as const,
+    },
+  ];
   
   const savedPGs = [
     { id: 1, name: "Sunshine PG", price: 8500, rating: 4.8, distance: "0.5 km from DU" },
@@ -57,7 +92,7 @@ const UserDashboard = () => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-tour="stats">
               <Card className="border-2">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -109,15 +144,15 @@ const UserDashboard = () => {
 
             <Tabs defaultValue="recommendations" className="w-full">
               <TabsList className="mb-6 flex-wrap h-auto gap-1">
-                <TabsTrigger value="recommendations" className="gap-2">
+                <TabsTrigger value="recommendations" className="gap-2" data-tour="recommendations">
                   <Sparkles className="h-4 w-4" />
                   For You
                 </TabsTrigger>
-                <TabsTrigger value="saved">Saved PGs</TabsTrigger>
+                <TabsTrigger value="saved" data-tour="saved">Saved PGs</TabsTrigger>
                 <TabsTrigger value="recent">Recently Viewed</TabsTrigger>
-                <TabsTrigger value="chats">Anonymous Chats</TabsTrigger>
+                <TabsTrigger value="chats" data-tour="chats">Anonymous Chats</TabsTrigger>
                 <TabsTrigger value="alerts">Vacancy Alerts</TabsTrigger>
-                <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                <TabsTrigger value="preferences" data-tour="preferences">Preferences</TabsTrigger>
                 <TabsTrigger value="profile">Profile</TabsTrigger>
               </TabsList>
 
@@ -375,6 +410,14 @@ const UserDashboard = () => {
       </div>
 
       <Footer />
+
+      {/* Onboarding Tour */}
+      {shouldShowTour && (
+        <OnboardingTour
+          steps={userDashboardTour}
+          tourKey="user-dashboard"
+        />
+      )}
     </div>
   );
 };

@@ -8,10 +8,8 @@ export const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-hero">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold">StayFinder</span>
+              <img src="/image.png" alt="SmartStay" className="h-10 w-10 rounded-lg" />
+              <span className="text-xl font-bold">SmartStay</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Find your perfect PG or hostel near your college with verified listings and transparent reviews.
@@ -43,7 +41,7 @@ export const Footer = () => {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                <span>support@stayfinder.com</span>
+                <span>support@smartstay.com</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
@@ -58,7 +56,7 @@ export const Footer = () => {
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} StayFinder. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} SmartStay. All rights reserved.</p>
         </div>
       </div>
     </footer>
