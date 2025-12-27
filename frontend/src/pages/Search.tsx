@@ -14,7 +14,7 @@ import { MapPin, Star, Shield, Wifi, UtensilsCrossed, Droplets, Home, SlidersHor
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { pgService } from "@/lib/supabase";
+import { pgService, storageService } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 const Search = () => {
@@ -287,9 +287,17 @@ const Search = () => {
                 <Card key={pg.id} className={`overflow-hidden hover-lift border-2 transition-all ${pg.is_available ? 'hover:border-primary' : 'opacity-75'}`}>
                   <div className="flex flex-col md:flex-row">
                     <div className="md:w-72 h-48 md:h-auto bg-muted relative shrink-0">
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <Building2 className="h-16 w-16 text-primary/40" />
-                      </div>
+                      {pg.images && pg.images.length > 0 ? (
+                        <img
+                          src={storageService.getPublicUrl("pg-images", pg.images[0])}
+                          alt={pg.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                          <Building2 className="h-16 w-16 text-primary/40" />
+                        </div>
+                      )}
                       {pg.is_verified && <Badge className="absolute top-4 left-4 bg-success"><Shield className="h-3 w-3 mr-1" />Verified</Badge>}
                       <Button variant="ghost" size="icon" className="absolute top-4 right-4 bg-white/80 hover:bg-white"><Heart className="h-4 w-4" /></Button>
                       {!pg.is_available && <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary">Currently Full</Badge></div>}

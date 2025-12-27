@@ -94,11 +94,16 @@ export const Navbar = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  const navLinks = [
-    { to: "/", label: "Home", icon: Home },
-    { to: "/search", label: "Search PGs", icon: Search },
-    { to: "/post-room", label: "Post Room", icon: Building2 },
+  // Filter nav links based on user role - only owners and admins can post rooms
+  const allNavLinks = [
+    { to: "/", label: "Home", icon: Home, roles: ["user", "owner", "admin"] },
+    { to: "/search", label: "Search PGs", icon: Search, roles: ["user", "owner", "admin"] },
+    { to: "/post-room", label: "Post Room", icon: Building2, roles: ["owner", "admin"] },
   ];
+
+  const navLinks = allNavLinks.filter(link => 
+    !currentUser || link.roles.includes(currentUser?.profile?.role || "user")
+  );
 
   const isActive = (path: string) => location.pathname === path;
 

@@ -37,14 +37,54 @@ import {
   ExternalLink,
   AlertCircle,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { pgService, reviewsService, storageService, savedPGsService } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
 
 const PGDetail = () => {
+  const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [pgData, setPgData] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [currentImage, setCurrentImage] = useState(0);
   const [vacancyAlertEnabled, setVacancyAlertEnabled] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const totalImages = 5;
+
+  useEffect(() => {
+    loadPGData();
+  }, [id]);
+
+  const loadPGData = async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    try {
+      const pg = await pgService.getById(id);
+      if (pg) {
+        setPgData(pg);
+        
+        // Load reviews
+        const pgReviews = await reviewsService.getByPGId(id);
+        setReviews(pgReviews || []);
+        
+        // Check if saved
+        const saved = await savedPGsService.isSaved(id);
+        setIsSaved(saved);
+      }
+    } catch (error) {
+      console.error("Error loading PG:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load PG details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalImages = pgData?.images?.length || 1;
 
   const handleVacancyAlertToggle = () => {
     setVacancyAlertEnabled(!vacancyAlertEnabled);
@@ -56,14 +96,32 @@ const PGDetail = () => {
     });
   };
 
-  const handleSave = () => {
-    setIsSaved(!isSaved);
-    toast({
-      title: isSaved ? "Removed from Saved" : "Saved Successfully",
-      description: isSaved 
-        ? "This PG has been removed from your saved list" 
-        : "You can view this PG anytime in your dashboard",
-    });
+  const handleSave = async () => {
+    if (!id) return;
+    
+    try {
+      if (isSaved) {
+        await savedPGsService.remove(id);
+        setIsSaved(false);
+        toast({
+          title: "Removed from Saved",
+          description: "This PG has been removed from your saved list",
+        });
+      } else {
+        await savedPGsService.save(id);
+        setIsSaved(true);
+        toast({
+          title: "Saved Successfully",
+          description: "You can view this PG anytime in your dashboard",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update saved PGs",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReport = () => {
@@ -73,31 +131,43 @@ const PGDetail = () => {
     });
   };
 
-  const amenities = [
-    { icon: Wifi, label: "High-Speed Wi-Fi" },
-    { icon: UtensilsCrossed, label: "3 Meals Included" },
-    { icon: Droplets, label: "24/7 Hot Water" },
-    { icon: Home, label: "Laundry Service" },
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
-  const reviews = [
-    {
-      id: 1,
-      author: "Priya S.",
-      rating: 5,
-      date: "2 days ago",
-      text: "Excellent PG with great facilities. The food is amazing and the staff is very helpful. Highly recommend for female students!",
-      helpful: 12,
-    },
-    {
-      id: 2,
-      author: "Rahul M.",
-      rating: 4,
-      date: "1 week ago",
-      text: "Good location and clean rooms. Wi-Fi speed could be better but overall a great place to stay.",
-      helpful: 8,
-    },
-  ];
+  if (!pgData) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-xl text-muted-foreground">PG not found</p>
+            <Button className="mt-4" asChild>
+              <Link to="/search">Back to Search</Link>
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Parse amenities from pgData
+  const amenities = [
+    { icon: Wifi, label: "Wi-Fi", enabled: pgData.amenities?.includes("wifi") },
+    { icon: UtensilsCrossed, label: "Food", enabled: pgData.amenities?.includes("food") },
+    { icon: Droplets, label: "Hot Water", enabled: pgData.amenities?.includes("hot_water") },
+    { icon: Home, label: "Laundry", enabled: pgData.amenities?.includes("laundry") },
+  ].filter(a => a.enabled);
 
   const qna = [
     {
@@ -126,43 +196,61 @@ const PGDetail = () => {
         {/* Image Gallery */}
         <div className="mb-8">
           <div className="relative aspect-video bg-muted rounded-2xl overflow-hidden mb-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
-              <Building2 className="h-32 w-32 text-white/40" />
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white"
-              onClick={() => setCurrentImage(Math.max(0, currentImage - 1))}
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white"
-              onClick={() => setCurrentImage(Math.min(totalImages - 1, currentImage + 1))}
-            >
-              <ChevronRight className="h-6 w-6" />
-            </Button>
+            {pgData.images && pgData.images.length > 0 ? (
+              <img
+                src={storageService.getPublicUrl("pg-images", pgData.images[currentImage])}
+                alt={`${pgData.name} - Image ${currentImage + 1}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
+                <Building2 className="h-32 w-32 text-white/40" />
+              </div>
+            )}
+            {totalImages > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white"
+                  onClick={() => setCurrentImage(Math.max(0, currentImage - 1))}
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white"
+                  onClick={() => setCurrentImage(Math.min(totalImages - 1, currentImage + 1))}
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              </>
+            )}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
               {currentImage + 1} / {totalImages}
             </div>
           </div>
           
-          <div className="grid grid-cols-5 gap-2">
-            {[...Array(5)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentImage(i)}
-                className={`aspect-video bg-muted rounded-lg overflow-hidden border-2 transition-all ${
-                  currentImage === i ? "border-primary" : "border-transparent"
-                }`}
-              >
-                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20"></div>
-              </button>
-            ))}
-          </div>
+          {pgData.images && pgData.images.length > 1 && (
+            <div className="grid grid-cols-5 gap-2">
+              {pgData.images.slice(0, 5).map((image: string, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentImage(i)}
+                  className={`aspect-video bg-muted rounded-lg overflow-hidden border-2 transition-all ${
+                    currentImage === i ? "border-primary" : "border-transparent"
+                  }`}
+                >
+                  <img
+                    src={storageService.getPublicUrl("pg-images", image)}
+                    alt={`Thumbnail ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -173,21 +261,23 @@ const PGDetail = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-3xl font-bold">Sunshine PG for Boys</h1>
-                    <Badge className="bg-success">
-                      <Shield className="h-3 w-3 mr-1" />
-                      Verified
-                    </Badge>
+                    <h1 className="text-3xl font-bold">{pgData.name}</h1>
+                    {pgData.is_verified && (
+                      <Badge className="bg-success">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Verified
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-muted-foreground flex items-center gap-2 mb-2">
                     <MapPin className="h-4 w-4" />
-                    0.5 km from Delhi University, Kamla Nagar, Delhi
+                    {typeof pgData.address === 'string' ? pgData.address : pgData.address?.full || pgData.address?.street}, {pgData.city}
                   </p>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 fill-accent text-accent" />
-                      <span className="font-semibold">4.8</span>
-                      <span className="text-sm text-muted-foreground">(42 reviews)</span>
+                      <span className="font-semibold">{pgData.rating || 'N/A'}</span>
+                      <span className="text-sm text-muted-foreground">({reviews.length} reviews)</span>
                     </div>
                   </div>
                 </div>
@@ -245,9 +335,7 @@ const PGDetail = () => {
                   <CardContent className="p-6">
                     <h3 className="font-semibold text-lg mb-4">About This PG</h3>
                     <p className="text-muted-foreground leading-relaxed">
-                      Welcome to Sunshine PG, a well-maintained and comfortable accommodation for male students and working professionals. 
-                      Located in the heart of Kamla Nagar, just walking distance from Delhi University. We provide a homely environment 
-                      with all modern amenities including high-speed Wi-Fi, nutritious meals, and 24/7 security.
+                      {pgData.description || 'No description available'}
                     </p>
                   </CardContent>
                 </Card>
@@ -260,28 +348,28 @@ const PGDetail = () => {
                         <Users className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Gender</p>
-                          <p className="font-medium">Boys Only</p>
+                          <p className="font-medium capitalize">{pgData.gender_preference}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <Bed className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Available Beds</p>
-                          <p className="font-medium">3 beds</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Clock className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Curfew Time</p>
-                          <p className="font-medium">10:00 PM</p>
+                          <p className="font-medium">{pgData.available_beds || 0} beds</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <Home className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Room Type</p>
-                          <p className="font-medium">Sharing (2-3)</p>
+                          <p className="font-medium capitalize">{pgData.room_type?.replace('_', ' ')}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Clock className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Deposit</p>
+                          <p className="font-medium">₹{pgData.deposit}</p>
                         </div>
                       </div>
                     </div>
@@ -372,7 +460,7 @@ const PGDetail = () => {
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="font-semibold text-lg mb-4">Travel Time Estimator</h3>
-                    <TravelTimeEstimator pgLocation="Kamla Nagar, Delhi" />
+                    <TravelTimeEstimator pgLocation={`${pgData.address}, ${pgData.city}`} />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -396,42 +484,45 @@ const PGDetail = () => {
               </TabsContent>
 
               <TabsContent value="reviews" className="space-y-4">
-                {reviews.map((review) => (
-                  <Card key={review.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>{review.author[0]}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-semibold">{review.author}</p>
-                            <p className="text-sm text-muted-foreground">{review.date}</p>
+                {reviews.length > 0 ? (
+                  reviews.map((review) => (
+                    <Card key={review.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback>{review.user?.profile?.full_name?.[0] || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-semibold">{review.user?.profile?.full_name || 'Anonymous'}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(review.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            {[...Array(review.rating)].map((_, i) => (
+                              <Star key={i} className="h-4 w-4 fill-accent text-accent" />
+                            ))}
                           </div>
                         </div>
-                        <div className="flex gap-1">
-                          {[...Array(review.rating)].map((_, i) => (
-                            <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-                          ))}
+                        <p className="text-muted-foreground mb-4">{review.comment}</p>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-muted-foreground">
+                            {review.helpful_count || 0} found this helpful
+                          </span>
                         </div>
-                      </div>
-                      <p className="text-muted-foreground mb-4">{review.text}</p>
-                      <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="sm">
-                          <ThumbsUp className="h-4 w-4 mr-2" />
-                          Helpful ({review.helpful})
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <ThumbsDown className="h-4 w-4 mr-2" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Flag className="h-4 w-4 mr-2" />
-                          Report
-                        </Button>
-                      </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">No reviews yet</p>
                     </CardContent>
                   </Card>
-                ))}
+                )}
               </TabsContent>
 
               <TabsContent value="qna" className="space-y-4">
@@ -439,8 +530,13 @@ const PGDetail = () => {
                   <Card key={item.id}>
                     <CardContent className="p-6">
                       <div className="mb-4">
-                        <p className="font-semibold text-lg mb-2">{item.question}</p>
-                        <p className="text-sm text-muted-foreground">Asked by {item.askedBy} • {item.date}</p>
+                        <div className="flex items-start gap-3 mb-2">
+                          <MessageCircle className="h-5 w-5 text-primary mt-1" />
+                          <div>
+                            <p className="font-semibold">{item.question}</p>
+                            <p className="text-sm text-muted-foreground">Asked by {item.askedBy} · {item.date}</p>
+                          </div>
+                        </div>
                       </div>
                       <div className="bg-secondary p-4 rounded-lg">
                         <p className="text-muted-foreground mb-2">{item.answer}</p>
@@ -484,11 +580,17 @@ const PGDetail = () => {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <p className="text-3xl font-bold text-primary mb-2">
-                    ₹8,500<span className="text-base text-muted-foreground font-normal">/month</span>
+                    ₹{pgData.monthly_rent}<span className="text-base text-muted-foreground font-normal">/month</span>
                   </p>
-                  <Badge variant="secondary" className="bg-success/10 text-success">
-                    3 beds available
-                  </Badge>
+                  {pgData.available_beds > 0 ? (
+                    <Badge variant="secondary" className="bg-success/10 text-success">
+                      {pgData.available_beds} beds available
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-destructive/10 text-destructive">
+                      No beds available
+                    </Badge>
+                  )}
                 </div>
 
                 <Separator />
@@ -513,25 +615,27 @@ const PGDetail = () => {
                   <h4 className="font-semibold mb-3">Owner Details</h4>
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary text-primary-foreground">RK</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {pgData.owner?.full_name?.[0] || 'O'}
+                      </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium">Rajesh Kumar</p>
-                      <Badge variant="secondary" className="text-xs">
-                        <Shield className="h-3 w-3 mr-1" />
-                        Verified Owner
-                      </Badge>
+                      <p className="font-medium">{pgData.owner?.full_name || 'Owner'}</p>
+                      {pgData.owner?.is_verified && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Verified Owner
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span>+91 98765 43210</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      <span>rajesh@example.com</span>
-                    </div>
+                    {pgData.owner?.phone && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        <span>{pgData.owner.phone}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

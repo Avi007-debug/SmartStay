@@ -188,15 +188,13 @@ export const pgService = {
 export const savedPGsService = {
   // Get user's saved PGs
   async getAll() {
-    const { data: { user } } = await supabase.auth.getUser()
-
     const { data, error } = await supabase
       .from('saved_pgs')
       .select(`
         *,
-        pg:pg_listings(*)
+        pg_listing:pg_listings(*)
       `)
-      .eq('user_id', user?.id)
+    // RLS policy already filters by auth.uid(), no need to manually filter user_id
 
     if (error) throw error
     return data
@@ -221,27 +219,23 @@ export const savedPGsService = {
 
   // Unsave a PG
   async unsave(pgId: string) {
-    const { data: { user } } = await supabase.auth.getUser()
-
     const { error } = await supabase
       .from('saved_pgs')
       .delete()
-      .eq('user_id', user?.id)
       .eq('pg_id', pgId)
+    // RLS policy already filters by auth.uid()
 
     if (error) throw error
   },
 
   // Check if PG is saved
   async isSaved(pgId: string) {
-    const { data: { user } } = await supabase.auth.getUser()
-
     const { data, error } = await supabase
       .from('saved_pgs')
       .select('*')
-      .eq('user_id', user?.id)
       .eq('pg_id', pgId)
-      .single()
+      .maybeSingle()
+    // RLS policy already filters by auth.uid()
 
     return !error && !!data
   },
@@ -295,13 +289,13 @@ export const reviewsService = {
   async vote(reviewId: string, voteType: 'up' | 'down') {
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Check if already voted
+    // Check if already voted - RLS will filter by user_id automatically
     const { data: existingVote } = await supabase
       .from('review_votes')
       .select('*')
       .eq('review_id', reviewId)
-      .eq('user_id', user?.id)
-      .single()
+      .maybeSingle()
+    // No need to filter by user_id - RLS handles it
 
     if (existingVote) {
       // Update vote
@@ -309,7 +303,7 @@ export const reviewsService = {
         .from('review_votes')
         .update({ vote_type: voteType })
         .eq('review_id', reviewId)
-        .eq('user_id', user?.id)
+      // RLS ensures only user's own vote is updated
     } else {
       // Insert new vote
       await supabase
@@ -437,13 +431,11 @@ export const chatService = {
 export const notificationsService = {
   // Get user's notifications
   async getAll() {
-    const { data: { user } } = await supabase.auth.getUser()
-
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', user?.id)
       .order('created_at', { ascending: false })
+    // RLS policy already filters by auth.uid()
 
     if (error) throw error
     return data

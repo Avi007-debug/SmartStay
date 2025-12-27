@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { authService } from "@/lib/supabase";
+import { authService, savedPGsService, storageService } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -41,6 +41,11 @@ const UserDashboard = () => {
         return;
       }
       setCurrentUser(user);
+      
+      // Load saved PGs
+      const saved = await savedPGsService.getAll();
+      setSavedPGs(saved || []);
+      
     } catch (error) {
       console.error('Error loading user:', error);
     } finally {
@@ -81,26 +86,10 @@ const UserDashboard = () => {
     },
   ];
   
-  const savedPGs = [
-    { id: 1, name: "Sunshine PG", price: 8500, rating: 4.8, distance: "0.5 km from DU" },
-    { id: 2, name: "Green Valley Hostel", price: 9500, rating: 4.6, distance: "1.2 km from DU" },
-  ];
-
-  const recentlyViewed = [
-    { id: 3, name: "Campus View PG", price: 7500, rating: 4.5, distance: "0.8 km from DU" },
-  ];
-
-  const notifications = [
-    { id: 1, type: "vacancy", message: "New vacancy at Sunshine PG", time: "2 hours ago", read: false },
-    { id: 2, type: "response", message: "Owner responded to your inquiry", time: "1 day ago", read: false },
-    { id: 3, type: "price", message: "Price dropped at Green Valley Hostel", time: "2 days ago", read: true },
-  ];
-
-  const recommendations = [
-    { id: 1, name: "Premium Stay PG", price: 9000, rating: 4.9, distance: "0.3 km from DU", verified: true, matchScore: 95, matchReasons: ["Within budget", "Near college", "Has WiFi"] },
-    { id: 2, name: "Student Nest Hostel", price: 7500, rating: 4.7, distance: "0.8 km from DU", verified: true, matchScore: 88, matchReasons: ["Low curfew", "Food included"] },
-    { id: 3, name: "Comfort Zone PG", price: 8200, rating: 4.6, distance: "1.0 km from DU", verified: false, matchScore: 82, matchReasons: ["AC rooms", "Attached bathroom"] },
-  ];
+  const [savedPGs, setSavedPGs] = useState<any[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
 
   if (loading) {
     return (
@@ -226,36 +215,47 @@ const UserDashboard = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  savedPGs.map((pg) => (
-                    <Card key={pg.id} className="hover-lift border-2 hover:border-primary">
-                      <div className="flex flex-col sm:flex-row">
-                        <div className="sm:w-48 h-32 bg-muted relative shrink-0">
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                            <Building2 className="h-12 w-12 text-primary/40" />
-                          </div>
-                        </div>
-                        <CardContent className="flex-1 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div>
-                            <h3 className="font-semibold text-lg mb-1">{pg.name}</h3>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
-                              <MapPin className="h-4 w-4" />
-                              {pg.distance}
-                            </p>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4 fill-accent text-accent" />
-                                <span className="text-sm font-medium">{pg.rating}</span>
+                  savedPGs.map((saved) => {
+                    const pg = saved.pg_listing;
+                    return (
+                      <Card key={saved.id} className="hover-lift border-2 hover:border-primary">
+                        <div className="flex flex-col sm:flex-row">
+                          <div className="sm:w-48 h-32 bg-muted relative shrink-0">
+                            {pg.images && pg.images.length > 0 ? (
+                              <img
+                                src={storageService.getPublicUrl("pg-images", pg.images[0])}
+                                alt={pg.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                                <Building2 className="h-12 w-12 text-primary/40" />
                               </div>
-                              <span className="text-lg font-bold text-primary">₹{pg.price}/mo</span>
-                            </div>
+                            )}
                           </div>
-                          <Button asChild>
-                            <Link to={`/pg/${pg.id}`}>View Details</Link>
-                          </Button>
-                        </CardContent>
-                      </div>
-                    </Card>
-                  ))
+                          <CardContent className="flex-1 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                              <h3 className="font-semibold text-lg mb-1">{pg.name}</h3>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
+                                <MapPin className="h-4 w-4" />
+                                {pg.city}
+                              </p>
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1">
+                                  <Star className="h-4 w-4 fill-accent text-accent" />
+                                  <span className="text-sm font-medium">{pg.rating || 'N/A'}</span>
+                                </div>
+                                <span className="text-lg font-bold text-primary">₹{pg.monthly_rent}/mo</span>
+                              </div>
+                            </div>
+                            <Button asChild>
+                              <Link to={`/pg/${pg.id}`}>View Details</Link>
+                            </Button>
+                          </CardContent>
+                        </div>
+                      </Card>
+                    );
+                  })
                 )}
               </TabsContent>
 
