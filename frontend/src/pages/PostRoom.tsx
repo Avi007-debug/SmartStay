@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -18,16 +19,26 @@ import { HiddenChargeDetector } from "@/components/ai/HiddenChargeDetector";
 import { SentimentSummary } from "@/components/ai/SentimentSummary";
 import { 
   Upload, CheckCircle, AlertCircle, Image, MapPin, DollarSign, 
-  Bed, Clock, Shield, Sparkles, Eye, Building2, Phone, Users, HelpCircle
+  Bed, Clock, Shield, Sparkles, Eye, Building2, Phone, Users, HelpCircle, X, Loader2
 } from "lucide-react";
+import { pgService, storageService } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
 const PostRoom = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<{ file: File, preview: string }[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     gender: "",
     roomType: "",
     address: "",
+    city: "",
+    state: "",
+    pincode: "",
     college: "",
     distance: "",
     rent: "",
@@ -40,6 +51,10 @@ const PostRoom = () => {
     cleanlinessLevel: [3],
     strictnessLevel: [3],
     whatsappGroup: "",
+    description: "",
+    foodIncluded: false,
+    maintenanceCharges: "",
+    electricityCharges: "",
   });
 
   const totalSteps = 5;
@@ -48,7 +63,8 @@ const PostRoom = () => {
   const amenities = [
     "Wi-Fi", "Food Included", "Hot Water", "Laundry", "AC", "Parking",
     "TV", "Fridge", "Gym", "CCTV", "Power Backup", "Attached Bathroom",
-    "Geyser", "RO Water", "Housekeeping", "Study Table"
+    "Geyser", "RO Water", "Housekeeping", "Study Table", "Almirah",
+    "Washing Machine", "Microwave", "Balcony", "Lift", "Security Guard"
   ];
 
   const toggleAmenity = (amenity: string) => {
@@ -58,6 +74,140 @@ const PostRoom = () => {
         ? prev.amenities.filter(a => a !== amenity)
         : [...prev.amenities, amenity]
     }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newImages = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setUploadedImages(prev => [...prev, ...newImages]);
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => {
+      const newImages = [...prev];
+      URL.revokeObjectURL(newImages[index].preview);
+      newImages.splice(index, 1);
+      return newImages;
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.name || !formData.gender || !formData.roomType) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields in Basic Info",
+        variant: "destructive",
+      });
+      setStep(1);
+      return;
+    }
+
+    if (!formData.rent || !formData.deposit || !formData.availableBeds) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required pricing fields",
+        variant: "destructive",
+      });
+      setStep(2);
+      return;
+    }
+
+    if (uploadedImages.length < 3) {
+      toast({
+        title: "Photos Required",
+        description: "Please upload at least 3 photos of your property",
+        variant: "destructive",
+      });
+      setStep(4);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Create the PG listing first (without images)
+      const listingData = {
+        name: formData.name,
+        description: formData.description || formData.rules,
+        gender: formData.gender,
+        room_type: formData.roomType,
+        address: {
+          street: formData.address,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          full: `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`,
+        },
+        rent: parseInt(formData.rent),
+        deposit: parseInt(formData.deposit),
+        total_beds: parseInt(formData.totalBeds) || parseInt(formData.availableBeds),
+        available_beds: parseInt(formData.availableBeds),
+        amenities: formData.amenities,
+        rules: {
+          curfewTime: formData.curfew || null,
+          guestsAllowed: false,
+          smokingAllowed: false,
+          petsAllowed: false,
+          customRules: formData.rules || null,
+        },
+        maintenance_charges: formData.maintenanceCharges ? parseInt(formData.maintenanceCharges) : 0,
+        electricity_charges: formData.electricityCharges || "As per usage",
+        whatsapp_group_link: formData.whatsappGroup || null,
+        cleanliness_level: formData.cleanlinessLevel[0],
+        strictness_level: formData.strictnessLevel[0],
+        distance_from_college: formData.distance ? parseFloat(formData.distance) : null,
+        nearest_college: formData.college || null,
+        is_available: parseInt(formData.availableBeds) > 0,
+        status: 'active',
+      };
+
+      const createdPG = await pgService.create(listingData);
+      
+      // Upload images
+      const imageUrls: string[] = [];
+      for (const { file } of uploadedImages) {
+        try {
+          const { url } = await storageService.uploadPGImage(file, createdPG.id);
+          imageUrls.push(url);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+        }
+      }
+
+      // Update PG with image URLs
+      if (imageUrls.length > 0) {
+        await pgService.update(createdPG.id, {
+          images: imageUrls
+        });
+      }
+
+      toast({
+        title: "Success!",
+        description: "Your PG listing has been published successfully",
+      });
+
+      // Navigate to the listing detail page
+      navigate(`/pg/${createdPG.id}`);
+
+    } catch (error: any) {
+      console.error('Error creating listing:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create listing. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const stepLabels = ["Basic Info", "Pricing", "Amenities & Rules", "Photos", "Preview"];
@@ -158,12 +308,47 @@ const PostRoom = () => {
                     <Label htmlFor="address">Full Address *</Label>
                     <Textarea 
                       id="address" 
-                      placeholder="Enter complete address with landmarks" 
-                      rows={3}
+                      placeholder="Enter street address with landmarks" 
+                      rows={2}
                       value={formData.address}
                       onChange={(e) => setFormData({...formData, address: e.target.value})}
                       required 
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City *</Label>
+                      <Input 
+                        id="city" 
+                        placeholder="e.g., Delhi"
+                        value={formData.city}
+                        onChange={(e) => setFormData({...formData, city: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State *</Label>
+                      <Input 
+                        id="state" 
+                        placeholder="e.g., Delhi"
+                        value={formData.state}
+                        onChange={(e) => setFormData({...formData, state: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="pincode">Pincode *</Label>
+                      <Input 
+                        id="pincode" 
+                        placeholder="e.g., 110001"
+                        value={formData.pincode}
+                        onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -188,6 +373,17 @@ const PostRoom = () => {
                         onChange={(e) => setFormData({...formData, distance: e.target.value})}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Property Description</Label>
+                    <Textarea 
+                      id="description" 
+                      placeholder="Describe your property, nearby facilities, transport options, etc." 
+                      rows={4}
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -277,6 +473,38 @@ const PostRoom = () => {
                       />
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="maintenance">Maintenance Charges (₹/month)</Label>
+                        <Input 
+                          id="maintenance" 
+                          type="number" 
+                          placeholder="e.g., 500"
+                          value={formData.maintenanceCharges}
+                          onChange={(e) => setFormData({...formData, maintenanceCharges: e.target.value})}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="electricity">Electricity Charges</Label>
+                        <Input 
+                          id="electricity" 
+                          placeholder="e.g., As per usage or Fixed ₹500"
+                          value={formData.electricityCharges}
+                          onChange={(e) => setFormData({...formData, electricityCharges: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        id="food"
+                        checked={formData.foodIncluded}
+                        onCheckedChange={(checked) => setFormData({...formData, foodIncluded: checked})}
+                      />
+                      <Label htmlFor="food">Food Included in Rent</Label>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="whatsapp">WhatsApp Group Link (Optional)</Label>
                       <Input 
@@ -318,7 +546,6 @@ const PostRoom = () => {
                       {amenities.map((amenity) => (
                         <div 
                           key={amenity} 
-                          onClick={() => toggleAmenity(amenity)}
                           className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
                             formData.amenities.includes(amenity) 
                               ? "border-primary bg-primary/5" 
@@ -326,10 +553,16 @@ const PostRoom = () => {
                           }`}
                         >
                           <Checkbox 
+                            id={`amenity-${amenity}`}
                             checked={formData.amenities.includes(amenity)}
                             onCheckedChange={() => toggleAmenity(amenity)}
                           />
-                          <Label className="cursor-pointer text-sm">{amenity}</Label>
+                          <Label 
+                            htmlFor={`amenity-${amenity}`}
+                            className="cursor-pointer text-sm flex-1"
+                          >
+                            {amenity}
+                          </Label>
                         </div>
                       ))}
                     </div>
@@ -349,7 +582,7 @@ const PostRoom = () => {
                       </div>
                       <Slider
                         value={formData.cleanlinessLevel}
-                        onValueChange={(v) => setFormData({...formData, cleanlinessLevel: v})}
+                        onValueChange={(v) => setFormData(prev => ({...prev, cleanlinessLevel: v}))}
                         min={1}
                         max={5}
                         step={1}
@@ -367,7 +600,7 @@ const PostRoom = () => {
                       </div>
                       <Slider
                         value={formData.strictnessLevel}
-                        onValueChange={(v) => setFormData({...formData, strictnessLevel: v})}
+                        onValueChange={(v) => setFormData(prev => ({...prev, strictnessLevel: v}))}
                         min={1}
                         max={5}
                         step={1}
@@ -394,21 +627,54 @@ const PostRoom = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary transition-colors cursor-pointer">
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB each</p>
+                    <input 
+                      type="file" 
+                      id="imageUpload"
+                      multiple 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <label htmlFor="imageUpload" className="cursor-pointer">
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB each</p>
+                    </label>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="aspect-video bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                        <div className="text-center">
-                          <Image className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                          <p className="text-xs text-muted-foreground mt-1">Photo {i}</p>
+                  {uploadedImages.length > 0 && (
+                    <div className="grid grid-cols-3 gap-4">
+                      {uploadedImages.map((img, index) => (
+                        <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden border-2 group">
+                          <img 
+                            src={img.preview} 
+                            alt={`Upload ${index + 1}`} 
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-2 right-2 bg-destructive text-destructive-foreground p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {uploadedImages.length === 0 && (
+                    <div className="grid grid-cols-3 gap-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="aspect-video bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
+                          <div className="text-center">
+                            <Image className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                            <p className="text-xs text-muted-foreground mt-1">Photo {i}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <Card className="bg-primary/5 border-primary">
                     <CardContent className="p-4 flex items-start gap-3">
@@ -419,6 +685,7 @@ const PostRoom = () => {
                           <li>Include photos of rooms, bathroom, common areas</li>
                           <li>Good lighting helps attract more tenants</li>
                           <li>Avoid photos with people in them</li>
+                          <li>Upload at least 3 photos (recommended: 5-10)</li>
                         </ul>
                       </div>
                     </CardContent>
@@ -441,14 +708,28 @@ const PostRoom = () => {
                   <CardContent className="space-y-6">
                     {/* Preview Card */}
                     <div className="border rounded-lg overflow-hidden">
-                      <div className="aspect-video bg-muted flex items-center justify-center">
-                        <Building2 className="h-16 w-16 text-muted-foreground/30" />
-                      </div>
+                      {uploadedImages.length > 0 ? (
+                        <div className="aspect-video bg-muted relative">
+                          <img 
+                            src={uploadedImages[0].preview} 
+                            alt="Property preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          {uploadedImages.length > 1 && (
+                            <Badge className="absolute bottom-2 right-2">{uploadedImages.length} photos</Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="aspect-video bg-muted flex items-center justify-center">
+                          <Building2 className="h-16 w-16 text-muted-foreground/30" />
+                        </div>
+                      )}
                       <div className="p-4">
                         <h3 className="font-semibold text-xl mb-2">{formData.name || "Your PG Name"}</h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mb-3">
                           <MapPin className="h-4 w-4" />
-                          {formData.distance ? `${formData.distance} km from ` : ""}{formData.college || "Your College"}
+                          {formData.city && formData.state ? `${formData.city}, ${formData.state}` : "City, State"}
+                          {formData.distance && formData.college && ` • ${formData.distance} km from ${formData.college}`}
                         </p>
                         <div className="flex flex-wrap gap-2 mb-3">
                           {formData.amenities.slice(0, 4).map((a) => (
@@ -473,11 +754,11 @@ const PostRoom = () => {
                     <div className="space-y-3">
                       <h4 className="font-semibold">Listing Checklist</h4>
                       {[
-                        { label: "Basic information completed", done: !!formData.name && !!formData.gender },
+                        { label: "Basic information completed", done: !!formData.name && !!formData.gender && !!formData.city },
                         { label: "Pricing details added", done: !!formData.rent && !!formData.deposit },
                         { label: "Amenities selected", done: formData.amenities.length > 0 },
-                        { label: "Photos uploaded", done: false },
-                        { label: "Owner verified", done: false },
+                        { label: "Photos uploaded (min 3)", done: uploadedImages.length >= 3 },
+                        { label: "Address details complete", done: !!formData.address && !!formData.city && !!formData.state },
                       ].map((item, i) => (
                         <div key={i} className="flex items-center gap-3">
                           {item.done ? (
@@ -521,7 +802,7 @@ const PostRoom = () => {
                 type="button"
                 variant="outline"
                 onClick={() => setStep(Math.max(1, step - 1))}
-                disabled={step === 1}
+                disabled={step === 1 || submitting}
               >
                 Previous
               </Button>
@@ -530,13 +811,29 @@ const PostRoom = () => {
                 <Button
                   type="button"
                   onClick={() => setStep(Math.min(totalSteps, step + 1))}
+                  disabled={submitting}
                 >
                   Next Step
                 </Button>
               ) : (
-                <Button type="submit" variant="accent" size="lg">
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Publish Listing
+                <Button 
+                  type="button" 
+                  variant="accent" 
+                  size="lg"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Publish Listing
+                    </>
+                  )}
                 </Button>
               )}
             </div>

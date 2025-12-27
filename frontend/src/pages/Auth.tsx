@@ -67,6 +67,9 @@ const Auth = () => {
       } else {
         navigate("/user-dashboard");
       }
+      
+      // Reload to refresh Navbar auth state
+      window.location.reload();
     } catch (error: any) {
       toast({
         title: "Sign In Failed",

@@ -563,6 +563,114 @@ export const preferencesService = {
   },
 }
 
+// ============================================
+// STORAGE SERVICE
+// ============================================
+export const storageService = {
+  // Upload PG image
+  async uploadPGImage(file: File, pgId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${user.id}/${pgId}/${Date.now()}.${fileExt}`
+
+    const { data, error } = await supabase.storage
+      .from('pg-images')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (error) throw error
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('pg-images')
+      .getPublicUrl(fileName)
+
+    return { path: fileName, url: publicUrl }
+  },
+
+  // Upload profile picture
+  async uploadProfilePicture(file: File) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${user.id}.${fileExt}`
+
+    const { data, error } = await supabase.storage
+      .from('profile-pictures')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true // Allow updating existing profile picture
+      })
+
+    if (error) throw error
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('profile-pictures')
+      .getPublicUrl(fileName)
+
+    return { path: fileName, url: publicUrl }
+  },
+
+  // Upload verification document
+  async uploadVerificationDoc(file: File, documentType: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${user.id}/${documentType}_${Date.now()}.${fileExt}`
+
+    const { data, error } = await supabase.storage
+      .from('verification-docs')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (error) throw error
+
+    // Get public URL (note: this bucket should be private in production)
+    const { data: { publicUrl } } = supabase.storage
+      .from('verification-docs')
+      .getPublicUrl(fileName)
+
+    return { path: fileName, url: publicUrl }
+  },
+
+  // Delete file from storage
+  async deleteFile(bucket: 'pg-images' | 'profile-pictures' | 'verification-docs', filePath: string) {
+    const { error } = await supabase.storage
+      .from(bucket)
+      .remove([filePath])
+
+    if (error) throw error
+  },
+
+  // Get public URL for a file
+  getPublicUrl(bucket: 'pg-images' | 'profile-pictures' | 'verification-docs', filePath: string) {
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath)
+
+    return data.publicUrl
+  },
+
+  // List files in a folder
+  async listFiles(bucket: 'pg-images' | 'profile-pictures' | 'verification-docs', folder?: string) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(folder)
+
+    if (error) throw error
+    return data
+  },
+}
+
 // Export all services
 export default {
   auth: authService,
@@ -573,4 +681,5 @@ export default {
   notifications: notificationsService,
   vacancyAlerts: vacancyAlertsService,
   preferences: preferencesService,
+  storage: storageService,
 }
