@@ -30,6 +30,7 @@ const App = () => (
           <Route path="/search" element={<Search />} />
           <Route path="/pg/:id" element={<PGDetail />} />
           <Route path="/post-room" element={<PostRoom />} />
+          <Route path="/edit-post/:id" element={<PostRoom />} />
           <Route path="/user-dashboard" element={<UserDashboard />} />
           <Route path="/owner-dashboard" element={<OwnerDashboard />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />

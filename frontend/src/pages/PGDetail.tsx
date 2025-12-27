@@ -8,6 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TravelTimeEstimator } from "@/components/ai/TravelTimeEstimator";
 import { toast } from "@/hooks/use-toast";
@@ -37,23 +40,185 @@ import {
   ExternalLink,
   AlertCircle,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { pgService, reviewsService, storageService, savedPGsService } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { pgService, reviewsService, storageService, savedPGsService, authService, qnaService } from "@/lib/supabase";
+import { Loader2, Edit } from "lucide-react";
 
 const PGDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [pgData, setPgData] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [qna, setQna] = useState<any[]>([]);
   const [currentImage, setCurrentImage] = useState(0);
   const [vacancyAlertEnabled, setVacancyAlertEnabled] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  // Review form state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewAnonymous, setReviewAnonymous] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  
+  // Q&A form state
+  const [qnaDialogOpen, setQnaDialogOpen] = useState(false);
+  const [questionText, setQuestionText] = useState("");
+  const [submittingQuestion, setSubmittingQuestion] = useState(false);
+  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [replyingToQuestion, setReplyingToQuestion] = useState<any>(null);
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   useEffect(() => {
     loadPGData();
+    loadCurrentUser();
   }, [id]);
+
+  const loadCurrentUser = async () => {
+    const user = await authService.getCurrentUser();
+    setCurrentUser(user);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please login to submit a review",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!reviewText.trim()) {
+      toast({
+        title: "Review Required",
+        description: "Please write a review before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      await reviewsService.create(id!, {
+        rating: reviewRating,
+        review_text: reviewText,
+        is_anonymous: reviewAnonymous,
+      });
+
+      toast({
+        title: "Review Submitted",
+        description: "Thank you for your feedback!",
+      });
+
+      // Reset form and close dialog
+      setReviewText("");
+      setReviewRating(5);
+      setReviewAnonymous(false);
+      setReviewDialogOpen(false);
+
+      // Reload reviews
+      const pgReviews = await reviewsService.getByPGId(id!);
+      setReviews(pgReviews || []);
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit review. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleSubmitQuestion = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please login to ask a question",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!questionText.trim()) {
+      toast({
+        title: "Question Required",
+        description: "Please enter a question before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmittingQuestion(true);
+    try {
+      await qnaService.askQuestion(id!, questionText);
+
+      toast({
+        title: "Question Submitted",
+        description: "The property owner will be notified of your question!",
+      });
+
+      setQuestionText("");
+      setQnaDialogOpen(false);
+
+      // Reload Q&A
+      const pgQna = await qnaService.getByPGId(id!);
+      setQna(pgQna || []);
+    } catch (error) {
+      console.error("Error submitting question:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit question. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingQuestion(false);
+    }
+  };
+
+  const handleSubmitReply = async () => {
+    if (!replyText.trim()) {
+      toast({
+        title: "Answer Required",
+        description: "Please enter an answer before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmittingReply(true);
+    try {
+      await qnaService.answerQuestion(replyingToQuestion.id, replyText);
+
+      toast({
+        title: "Answer Posted",
+        description: "Your answer has been posted successfully!",
+      });
+
+      setReplyText("");
+      setReplyDialogOpen(false);
+      setReplyingToQuestion(null);
+
+      // Reload Q&A
+      const pgQna = await qnaService.getByPGId(id!);
+      setQna(pgQna || []);
+    } catch (error) {
+      console.error("Error submitting reply:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit answer. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
 
   const loadPGData = async () => {
     if (!id) return;
@@ -67,6 +232,10 @@ const PGDetail = () => {
         // Load reviews
         const pgReviews = await reviewsService.getByPGId(id);
         setReviews(pgReviews || []);
+        
+        // Load Q&A
+        const pgQna = await qnaService.getByPGId(id);
+        setQna(pgQna || []);
         
         // Check if saved
         const saved = await savedPGsService.isSaved(id);
@@ -161,32 +330,53 @@ const PGDetail = () => {
     );
   }
 
-  // Parse amenities from pgData
-  const amenities = [
-    { icon: Wifi, label: "Wi-Fi", enabled: pgData.amenities?.includes("wifi") },
-    { icon: UtensilsCrossed, label: "Food", enabled: pgData.amenities?.includes("food") },
-    { icon: Droplets, label: "Hot Water", enabled: pgData.amenities?.includes("hot_water") },
-    { icon: Home, label: "Laundry", enabled: pgData.amenities?.includes("laundry") },
-  ].filter(a => a.enabled);
+  // Parse amenities from pgData with color categories
+  const getAmenityCategory = (amenity: string) => {
+    const key = amenity.toLowerCase().replace(/ /g, '_');
+    
+    // Connectivity & Entertainment
+    if (['wifi', 'wi-fi', 'tv', 'cable'].includes(key)) return 'connectivity';
+    
+    // Food & Kitchen
+    if (['food', 'food_included', 'kitchen', 'fridge', 'mess'].includes(key)) return 'food';
+    
+    // Utilities
+    if (['hot_water', 'water', 'electricity', 'power_backup', 'geyser'].includes(key)) return 'utilities';
+    
+    // Safety & Security
+    if (['cctv', 'security', 'fire_safety', 'biometric'].includes(key)) return 'security';
+    
+    // Comfort
+    if (['ac', 'cooler', 'fan', 'heater', 'ventilation'].includes(key)) return 'comfort';
+    
+    // Facilities
+    if (['parking', 'gym', 'laundry', 'washing_machine', 'lift', 'elevator'].includes(key)) return 'facilities';
+    
+    // Room Features
+    if (['attached_bathroom', 'balcony', 'cupboard', 'bed', 'table', 'chair'].includes(key)) return 'room';
+    
+    return 'other';
+  };
 
-  const qna = [
-    {
-      id: 1,
-      question: "Is there a curfew time?",
-      answer: "Yes, the curfew is at 10:00 PM on weekdays and 11:00 PM on weekends.",
-      askedBy: "Anonymous",
-      answeredBy: "Owner",
-      date: "3 days ago",
-    },
-    {
-      id: 2,
-      question: "Are guests allowed?",
-      answer: "Yes, guests are allowed in the common area until 8:00 PM with prior notice.",
-      askedBy: "Anonymous",
-      answeredBy: "Owner",
-      date: "1 week ago",
-    },
-  ];
+  const getCategoryStyle = (category: string) => {
+    const styles: Record<string, string> = {
+      connectivity: 'bg-blue-100 text-blue-700 border-blue-200',
+      food: 'bg-orange-100 text-orange-700 border-orange-200',
+      utilities: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+      security: 'bg-red-100 text-red-700 border-red-200',
+      comfort: 'bg-green-100 text-green-700 border-green-200',
+      facilities: 'bg-purple-100 text-purple-700 border-purple-200',
+      room: 'bg-pink-100 text-pink-700 border-pink-200',
+      other: 'bg-gray-100 text-gray-700 border-gray-200',
+    };
+    return styles[category] || styles.other;
+  };
+
+  const amenities = (pgData.amenities || []).map((amenity: string) => {
+    const label = amenity.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const category = getAmenityCategory(amenity);
+    return { label, category, style: getCategoryStyle(category) };
+  });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -198,9 +388,14 @@ const PGDetail = () => {
           <div className="relative aspect-video bg-muted rounded-2xl overflow-hidden mb-4">
             {pgData.images && pgData.images.length > 0 ? (
               <img
-                src={storageService.getPublicUrl("pg-images", pgData.images[currentImage])}
+                src={pgData.images[currentImage]?.startsWith('http') 
+                  ? pgData.images[currentImage] 
+                  : storageService.getPublicUrl("pg-images", pgData.images[currentImage])}
                 alt={`${pgData.name} - Image ${currentImage + 1}`}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+                }}
               />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
@@ -243,9 +438,14 @@ const PGDetail = () => {
                   }`}
                 >
                   <img
-                    src={storageService.getPublicUrl("pg-images", image)}
+                    src={image?.startsWith('http') 
+                      ? image 
+                      : storageService.getPublicUrl("pg-images", image)}
                     alt={`Thumbnail ${i + 1}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+                    }}
                   />
                 </button>
               ))}
@@ -282,6 +482,21 @@ const PGDetail = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {currentUser?.id === pgData?.owner_id && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="default" 
+                          size="icon"
+                          onClick={() => navigate(`/edit-post/${id}`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit this PG</TooltipContent>
+                    </Tooltip>
+                  )}
+                  
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button variant="outline" size="icon">
@@ -348,7 +563,12 @@ const PGDetail = () => {
                         <Users className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Gender</p>
-                          <p className="font-medium capitalize">{pgData.gender_preference}</p>
+                          <p className="font-medium capitalize">
+                            {pgData.gender_preference === 'male' ? 'Boys Only' : 
+                             pgData.gender_preference === 'female' ? 'Girls Only' : 
+                             pgData.gender_preference === 'both' ? 'Co-ed' : 
+                             pgData.gender_preference || 'Any'}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -469,21 +689,97 @@ const PGDetail = () => {
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="font-semibold text-lg mb-4">Included Amenities</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {amenities.map((amenity, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                            <amenity.icon className="h-5 w-5 text-primary" />
+                    {amenities.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {amenities.map((amenity, index) => (
+                          <div
+                            key={`${amenity.label}-${index}`}
+                            className={`px-4 py-2 rounded-full border font-medium text-sm ${amenity.style}`}
+                          >
+                            {amenity.label}
                           </div>
-                          <span className="font-medium">{amenity.label}</span>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-center py-8">No amenities listed</p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="reviews" className="space-y-4">
+                <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full mb-4">
+                      <Star className="h-4 w-4 mr-2" />
+                      Write a Review
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Write a Review</DialogTitle>
+                      <DialogDescription>
+                        Share your experience to help others make informed decisions
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Rating</Label>
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <button
+                              key={rating}
+                              type="button"
+                              onClick={() => setReviewRating(rating)}
+                              className="focus:outline-none"
+                            >
+                              <Star
+                                className={`h-8 w-8 ${
+                                  rating <= reviewRating
+                                    ? "fill-accent text-accent"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="review">Your Review</Label>
+                        <Textarea
+                          id="review"
+                          placeholder="Share your experience..."
+                          value={reviewText}
+                          onChange={(e) => setReviewText(e.target.value)}
+                          rows={5}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="anonymous"
+                          checked={reviewAnonymous}
+                          onCheckedChange={setReviewAnonymous}
+                        />
+                        <Label htmlFor="anonymous">Post anonymously</Label>
+                      </div>
+                      <Button
+                        onClick={handleSubmitReview}
+                        disabled={submittingReview}
+                        className="w-full"
+                      >
+                        {submittingReview ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          "Submit Review"
+                        )}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
                 {reviews.length > 0 ? (
                   reviews.map((review) => (
                     <Card key={review.id}>
@@ -526,52 +822,171 @@ const PGDetail = () => {
               </TabsContent>
 
               <TabsContent value="qna" className="space-y-4">
-                {qna.map((item) => (
-                  <Card key={item.id}>
-                    <CardContent className="p-6">
-                      <div className="mb-4">
-                        <div className="flex items-start gap-3 mb-2">
-                          <MessageCircle className="h-5 w-5 text-primary mt-1" />
-                          <div>
-                            <p className="font-semibold">{item.question}</p>
-                            <p className="text-sm text-muted-foreground">Asked by {item.askedBy} · {item.date}</p>
+                {qna.length > 0 ? (
+                  qna.map((item) => (
+                    <Card key={item.id}>
+                      <CardContent className="p-6">
+                        <div className="mb-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-start gap-3 flex-1">
+                              <MessageCircle className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="font-semibold">{item.question}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Asked by {item.user?.full_name || 'Anonymous'} · {new Date(item.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            {/* Show Reply button only to owner if not answered yet */}
+                            {!item.answer && currentUser?.id === pgData.owner_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setReplyingToQuestion(item);
+                                  setReplyDialogOpen(true);
+                                }}
+                              >
+                                Reply
+                              </Button>
+                            )}
                           </div>
                         </div>
-                      </div>
-                      <div className="bg-secondary p-4 rounded-lg">
-                        <p className="text-muted-foreground mb-2">{item.answer}</p>
-                        <p className="text-sm text-muted-foreground">— {item.answeredBy}</p>
-                      </div>
+                        {item.answer && (
+                          <div className="bg-secondary p-4 rounded-lg">
+                            <p className="text-muted-foreground mb-2">{item.answer}</p>
+                            <p className="text-sm text-muted-foreground">
+                              — {item.answerer?.full_name || 'Owner'} · {new Date(item.answered_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">No questions yet. Be the first to ask!</p>
                     </CardContent>
                   </Card>
-                ))}
-                <Button variant="outline" className="w-full">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Ask a Question
-                </Button>
+                )}
+                
+                <Dialog open={qnaDialogOpen} onOpenChange={setQnaDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Ask a Question
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Ask a Question</DialogTitle>
+                      <DialogDescription>
+                        Get answers from the property owner or community
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="question">Your Question</Label>
+                        <Textarea
+                          id="question"
+                          placeholder="What would you like to know about this property?"
+                          value={questionText}
+                          onChange={(e) => setQuestionText(e.target.value)}
+                          rows={4}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleSubmitQuestion}
+                        disabled={submittingQuestion}
+                        className="w-full"
+                      >
+                        {submittingQuestion ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          "Submit Question"
+                        )}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Reply Dialog for Owner */}
+                <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Answer Question</DialogTitle>
+                      <DialogDescription>
+                        Provide an answer to help potential tenants
+                      </DialogDescription>
+                    </DialogHeader>
+                    {replyingToQuestion && (
+                      <div className="py-4 space-y-4">
+                        <div className="bg-muted p-3 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Question:</p>
+                          <p className="font-semibold">{replyingToQuestion.question}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="answer">Your Answer</Label>
+                          <Textarea
+                            id="answer"
+                            placeholder="Type your answer here..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            rows={4}
+                          />
+                        </div>
+                        <Button
+                          onClick={handleSubmitReply}
+                          disabled={submittingReply}
+                          className="w-full"
+                        >
+                          {submittingReply ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Posting Answer...
+                            </>
+                          ) : (
+                            "Post Answer"
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
             </Tabs>
 
             {/* WhatsApp Community Section */}
-            <Card className="mt-6 border-2 border-green-500/20 bg-green-500/5">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10 shrink-0">
-                    <MessageCircle className="h-6 w-6 text-green-600" />
+            {pgData.whatsapp_group_link && (
+              <Card className="mt-6 border-2 border-green-500/20 bg-green-500/5">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10 shrink-0">
+                      <MessageCircle className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg mb-2">Join WhatsApp Community</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Connect with current and prospective residents. Get instant updates, share experiences, and ask questions directly in the community group.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="border-green-500 text-green-700 hover:bg-green-50"
+                        onClick={() => window.open(pgData.whatsapp_group_link, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Join WhatsApp Group
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-2">Join WhatsApp Community</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Connect with current and prospective residents. Get instant updates, share experiences, and ask questions directly in the community group.
-                    </p>
-                    <Button variant="outline" className="border-green-500 text-green-700 hover:bg-green-50">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Join WhatsApp Group
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -580,7 +995,7 @@ const PGDetail = () => {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <p className="text-3xl font-bold text-primary mb-2">
-                    ₹{pgData.monthly_rent}<span className="text-base text-muted-foreground font-normal">/month</span>
+                    ₹{pgData.rent}<span className="text-base text-muted-foreground font-normal">/month</span>
                   </p>
                   {pgData.available_beds > 0 ? (
                     <Badge variant="secondary" className="bg-success/10 text-success">
@@ -596,7 +1011,25 @@ const PGDetail = () => {
                 <Separator />
 
                 <div className="space-y-3">
-                  <Button className="w-full" size="lg" variant="accent">
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    variant="accent"
+                    onClick={() => {
+                      if (pgData.contact_number) {
+                        toast({
+                          title: "Owner Contact",
+                          description: `Phone: ${pgData.contact_number}`,
+                        });
+                      } else {
+                        toast({
+                          title: "Contact Information",
+                          description: "Contact details not available. Please use Chat Anonymously.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
                     <Phone className="h-4 w-4 mr-2" />
                     Contact Owner
                   </Button>
@@ -630,11 +1063,20 @@ const PGDetail = () => {
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    {pgData.owner?.phone && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
+                    {pgData.contact_number && (
+                      <button
+                        className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors cursor-pointer w-full"
+                        onClick={() => {
+                          navigator.clipboard.writeText(pgData.contact_number);
+                          toast({
+                            title: "Copied!",
+                            description: "Phone number copied to clipboard",
+                          });
+                        }}
+                      >
                         <Phone className="h-4 w-4" />
-                        <span>{pgData.owner.phone}</span>
-                      </div>
+                        <span className="hover:underline">{pgData.contact_number}</span>
+                      </button>
                     )}
                   </div>
                 </div>

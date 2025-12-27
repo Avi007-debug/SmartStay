@@ -321,6 +321,82 @@ export const reviewsService = {
 }
 
 // ============================================
+// Q&A SERVICE
+// ============================================
+export const qnaService = {
+  // Get Q&A for a PG listing
+  async getByPGId(pgId: string) {
+    const { data, error } = await supabase
+      .from('qna')
+      .select(`
+        *,
+        user:profiles!qna_user_id_fkey (
+          full_name,
+          profile_picture
+        ),
+        answerer:profiles!qna_answered_by_fkey (
+          full_name,
+          profile_picture
+        )
+      `)
+      .eq('pg_id', pgId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Ask a question
+  async askQuestion(pgId: string, question: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('qna')
+      .insert({
+        pg_id: pgId,
+        user_id: user.id,
+        question: question.trim(),
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Answer a question (property owners only)
+  async answerQuestion(questionId: string, answer: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('qna')
+      .update({
+        answer: answer.trim(),
+        answered_by: user.id,
+        answered_at: new Date().toISOString(),
+      })
+      .eq('id', questionId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Delete a question (user's own unanswered questions only)
+  async deleteQuestion(questionId: string) {
+    const { error } = await supabase
+      .from('qna')
+      .delete()
+      .eq('id', questionId)
+
+    if (error) throw error
+  },
+}
+
+// ============================================
 // CHAT SERVICE
 // ============================================
 export const chatService = {
@@ -669,6 +745,7 @@ export default {
   pgs: pgService,
   savedPGs: savedPGsService,
   reviews: reviewsService,
+  qna: qnaService,
   chat: chatService,
   notifications: notificationsService,
   vacancyAlerts: vacancyAlertsService,

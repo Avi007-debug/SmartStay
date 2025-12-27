@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -26,10 +26,12 @@ import { useToast } from "@/hooks/use-toast";
 
 const PostRoom = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<{ file: File, preview: string }[]>([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -59,6 +61,57 @@ const PostRoom = () => {
 
   const totalSteps = 5;
   const progress = (step / totalSteps) * 100;
+  const isEditMode = !!id;
+
+  useEffect(() => {
+    if (id) {
+      loadPGData();
+    }
+  }, [id]);
+
+  const loadPGData = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const pg = await pgService.getById(id);
+      if (pg) {
+        // Populate form with existing data
+        setFormData({
+          name: pg.name || "",
+          gender: pg.gender_preference || "",
+          roomType: pg.room_type || "",
+          address: typeof pg.address === 'string' ? pg.address : pg.address?.street || "",
+          city: pg.city || "",
+          state: typeof pg.address === 'object' ? pg.address?.state || "" : "",
+          pincode: typeof pg.address === 'object' ? pg.address?.pincode || "" : "",
+          college: "",
+          distance: pg.distance_from_college?.toString() || "",
+          rent: pg.monthly_rent?.toString() || "",
+          deposit: pg.deposit?.toString() || "",
+          totalBeds: pg.total_beds?.toString() || "",
+          availableBeds: pg.available_beds?.toString() || "",
+          curfew: "",
+          rules: "",
+          amenities: pg.amenities || [],
+          cleanlinessLevel: [pg.cleanliness_level || 3],
+          strictnessLevel: [3],
+          whatsappGroup: pg.whatsapp_group_link || "",
+          description: pg.description || "",
+          foodIncluded: pg.amenities?.includes("food") || false,
+          maintenanceCharges: "",
+          electricityCharges: "",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load PG data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const amenities = [
     "Wi-Fi", "Food Included", "Hot Water", "Laundry", "AC", "Parking",
@@ -219,12 +272,22 @@ const PostRoom = () => {
       <div className="container mx-auto px-4 py-8 flex-1">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">List Your Property</h1>
-            <p className="text-muted-foreground">Fill in the details to create your PG listing</p>
+            <h1 className="text-3xl font-bold mb-2">
+              {isEditMode ? "Edit Your Property" : "List Your Property"}
+            </h1>
+            <p className="text-muted-foreground">
+              {isEditMode ? "Update the details of your PG listing" : "Fill in the details to create your PG listing"}
+            </p>
           </div>
 
-          {/* Progress Bar */}
-          <Card className="mb-8">
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              {/* Progress Bar */}
+              <Card className="mb-8">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Step {step} of {totalSteps}</span>
@@ -835,6 +898,8 @@ const PostRoom = () => {
               )}
             </div>
           </form>
+            </>
+          )}
         </div>
       </div>
 
