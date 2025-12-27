@@ -1,32 +1,93 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, ThumbsUp, ThumbsDown, TrendingUp } from "lucide-react";
+import { Sparkles, ThumbsUp, ThumbsDown, TrendingUp, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 interface SentimentSummaryProps {
-  overallSentiment: "positive" | "neutral" | "negative";
-  sentimentScore: number;
-  totalReviews: number;
-  highlights: string[];
-  concerns: string[];
+  reviews: any[];
+  pgName?: string;
   className?: string;
 }
 
+interface SentimentData {
+  overall_sentiment: "positive" | "neutral" | "negative";
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
+  insights: string;
+  keywords: {
+    positive: string[];
+    negative: string[];
+  };
+}
+
 export const SentimentSummary = ({
-  overallSentiment = "positive",
-  sentimentScore = 85,
-  totalReviews = 42,
-  highlights = ["Food quality", "Cleanliness", "Staff behavior"],
-  concerns = ["Wi-Fi speed during peak hours"],
+  reviews = [],
+  pgName = "this property",
   className,
 }: SentimentSummaryProps) => {
+  const [loading, setLoading] = useState(true);
+  const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSentiment = async () => {
+      if (!reviews || reviews.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await fetch(`${BACKEND_URL}/api/ai/sentiment-analysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviews, pg_name: pgName }),
+        });
+
+        if (!response.ok) throw new Error('Failed to analyze sentiment');
+        
+        const data = await response.json();
+        setSentimentData(data);
+      } catch (err) {
+        console.error('Sentiment analysis error:', err);
+        setError('Unable to analyze reviews');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSentiment();
+  }, [reviews, pgName]);
+
+  if (loading) {
+    return (
+      <Card className={`border-accent/50 bg-accent/5 ${className}`}>
+        <CardContent className="py-8 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !sentimentData) {
+    return null;
+  }
+
+  const totalReviews = reviews.length;
+  const sentimentScore = Math.round((sentimentData.positive_count / totalReviews) * 100);
   const sentimentConfig = {
     positive: { label: "Very Positive", color: "text-success", bgColor: "bg-success/10" },
     neutral: { label: "Neutral", color: "text-warning", bgColor: "bg-warning/10" },
     negative: { label: "Needs Improvement", color: "text-destructive", bgColor: "bg-destructive/10" },
   };
 
-  const config = sentimentConfig[overallSentiment];
+  const config = sentimentConfig[sentimentData.overall_sentiment];
+  const highlights = sentimentData.keywords.positive;
+  const concerns = sentimentData.keywords.negative;
 
   return (
     <Card className={`border-accent/50 bg-accent/5 ${className}`}>

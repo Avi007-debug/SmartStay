@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { authService } from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,8 +23,30 @@ import { Heart, Clock, Star, Bell, MessageCircle, User, MapPin, Building2, Spark
 import { Link } from "react-router-dom";
 
 const UserDashboard = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [budget, setBudget] = useState([5000, 15000]);
   const { shouldShowTour } = useOnboardingTour("user-dashboard");
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Error loading user:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const userDashboardTour = [
     {
@@ -76,6 +101,18 @@ const UserDashboard = () => {
     { id: 2, name: "Student Nest Hostel", price: 7500, rating: 4.7, distance: "0.8 km from DU", verified: true, matchScore: 88, matchReasons: ["Low curfew", "Food included"] },
     { id: 3, name: "Comfort Zone PG", price: 8200, rating: 4.6, distance: "1.0 km from DU", verified: false, matchScore: 82, matchReasons: ["AC rooms", "Attached bathroom"] },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -375,20 +412,20 @@ const UserDashboard = () => {
                         <User className="h-10 w-10 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg">John Doe</h3>
-                        <p className="text-sm text-muted-foreground">john.doe@example.com</p>
-                        <Badge variant="secondary" className="mt-2">Student</Badge>
+                        <h3 className="font-semibold text-lg">{currentUser?.profile?.full_name || 'User'}</h3>
+                        <p className="text-sm text-muted-foreground">{currentUser?.email}</p>
+                        <Badge variant="secondary" className="mt-2">{currentUser?.profile?.role || 'Student'}</Badge>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue="John Doe" className="mt-2" />
+                        <Input id="name" defaultValue={currentUser?.profile?.full_name || ''} className="mt-2" />
                       </div>
                       <div>
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue="john.doe@example.com" className="mt-2" />
+                        <Input id="email" type="email" defaultValue={currentUser?.email || ''} className="mt-2" />
                       </div>
                       <div>
                         <Label htmlFor="phone">Phone Number</Label>

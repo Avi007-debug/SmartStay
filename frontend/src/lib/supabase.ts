@@ -84,7 +84,7 @@ export const pgService = {
   }) {
     let query = supabase.from('pg_listings').select(`
       *,
-      owner:profiles!owner_id(full_name, email, phone, is_verified)
+      owner:profiles!owner_id(full_name, phone, is_verified)
     `).eq('status', 'active')
 
     if (filters?.city) {
@@ -121,7 +121,7 @@ export const pgService = {
       .from('pg_listings')
       .select(`
         *,
-        owner:profiles!owner_id(full_name, email, phone, is_verified)
+        owner:profiles!owner_id(full_name, phone, is_verified)
       `)
       .eq('id', id)
       .single()

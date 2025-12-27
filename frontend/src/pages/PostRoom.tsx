@@ -519,16 +519,13 @@ const PostRoom = () => {
                 </Card>
 
                 <HiddenChargeDetector 
-                  missingInfo={[
-                    formData.rent ? null : "Monthly rent not specified",
-                    formData.deposit ? null : "Security deposit not mentioned",
-                    "Electricity charges not specified",
-                    "Maintenance fee details missing",
-                  ].filter(Boolean) as string[]}
-                  mentionedCharges={[
-                    formData.rent ? `Monthly rent: ₹${formData.rent}` : null,
-                    formData.deposit ? `Security deposit: ₹${formData.deposit}` : null,
-                  ].filter(Boolean) as string[]}
+                  pgData={{
+                    description: formData.description,
+                    rent: Number(formData.rent),
+                    deposit: Number(formData.deposit),
+                    amenities: formData.amenities,
+                    rules: formData.rules,
+                  }}
                 />
               </div>
             )}

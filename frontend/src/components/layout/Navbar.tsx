@@ -205,10 +205,10 @@ export const Navbar = () => {
                     <Link to={`/${currentUser?.profile?.role || 'user'}-dashboard`}>Dashboard</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to={`/${currentUser?.profile?.role || 'user'}-dashboard/profile`}>Profile</Link>
+                    <Link to="/preferences">Preferences</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to={`/${currentUser?.profile?.role || 'user'}-dashboard/preferences`}>Preferences</Link>
+                    <Link to="/notifications">Notifications</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">

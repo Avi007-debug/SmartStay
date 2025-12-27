@@ -232,7 +232,7 @@ const Search = () => {
           </div>
         </div>
 
-        <div className="flex gap-6"> onClick={handleClearFilters}
+        <div className="flex gap-6">
           <aside className="hidden md:block w-80 shrink-0">
             <Card className="sticky top-24 border-2">
               <CardContent className="p-6">
