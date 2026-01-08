@@ -21,11 +21,11 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1️⃣ PROFILES TABLE
 -- ============================================
 -- Extends Supabase Auth with role-based profiles
+-- NOTE: Email is stored in auth.users, not here (to avoid duplication)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT CHECK (role IN ('user', 'owner', 'admin')) NOT NULL DEFAULT 'user',
   full_name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
   phone TEXT,
   profile_picture TEXT,
   
@@ -49,7 +49,6 @@ CREATE TABLE profiles (
 
 -- Indexes for performance
 CREATE INDEX idx_profiles_role ON profiles(role);
-CREATE INDEX idx_profiles_email ON profiles(email);
 
 -- ============================================
 -- 2️⃣ PG LISTINGS TABLE
@@ -201,29 +200,9 @@ CREATE TABLE review_votes (
 -- ============================================
 -- 5️⃣ Q&A SYSTEM (Questions & Answers)
 -- ============================================
-CREATE TABLE pg_questions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  pg_id UUID REFERENCES pg_listings(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Can be anonymous
-  
-  question TEXT NOT NULL,
-  is_anonymous BOOLEAN DEFAULT TRUE,
-  
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE TABLE pg_answers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  question_id UUID REFERENCES pg_questions(id) ON DELETE CASCADE NOT NULL,
-  answerer_id UUID REFERENCES profiles(id) ON DELETE SET NULL NOT NULL, -- Usually owner
-  
-  answer TEXT NOT NULL,
-  
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_questions_pg ON pg_questions(pg_id);
-CREATE INDEX idx_answers_question ON pg_answers(question_id);
+-- NOTE: This Q&A system is defined in CREATE_QNA_TABLE.sql
+-- If you need Q&A, run that file after this schema
+-- Old pg_questions/pg_answers tables have been removed to avoid duplication
 
 -- ============================================
 -- 6️⃣ CHATS TABLE (Anonymous & Normal)
@@ -358,6 +337,14 @@ CREATE TABLE recently_viewed (
 
 CREATE INDEX idx_recently_viewed_user ON recently_viewed(user_id);
 CREATE INDEX idx_recently_viewed_date ON recently_viewed(viewed_at DESC);
+
+-- Enable RLS
+ALTER TABLE recently_viewed ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own recently viewed"
+  ON recently_viewed
+  FOR ALL
+  USING (user_id = auth.uid());
 
 -- ============================================
 -- 1️⃣2️⃣ VERIFICATION DOCUMENTS TABLE
@@ -642,3 +629,90 @@ SECURITY:
 Row Level Security (RLS) policies are configured.
 Always use authenticated requests from frontend.
 */
+
+-- ============================================
+-- TRIGGERS & FUNCTIONS
+-- ============================================
+
+-- 1️⃣ Auto-create profile on user signup
+-- SECURITY: Admin role cannot be set via signup (must be manually promoted in DB)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, role, full_name)
+  VALUES (
+    NEW.id,
+    CASE
+      WHEN NEW.raw_user_meta_data->>'role' = 'owner' THEN 'owner'
+      ELSE 'user'
+    END,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'User')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 2️⃣ Increment PG listing views
+DROP FUNCTION IF EXISTS public.increment_views(UUID);
+
+CREATE OR REPLACE FUNCTION public.increment_views(pg_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE pg_listings
+  SET views = views + 1
+  WHERE id = pg_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.increment_views(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_views(UUID) TO anon;
+
+-- 3️⃣ Search PGs with filters
+CREATE OR REPLACE FUNCTION search_pgs(
+  search_city TEXT DEFAULT NULL,
+  min_rent INTEGER DEFAULT NULL,
+  max_rent INTEGER DEFAULT NULL,
+  search_gender TEXT DEFAULT NULL,
+  search_room_type TEXT DEFAULT NULL
+)
+RETURNS SETOF pg_listings AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM pg_listings
+  WHERE status = 'active'
+    AND (search_city IS NULL OR address->>'city' ILIKE '%' || search_city || '%')
+    AND (min_rent IS NULL OR rent >= min_rent)
+    AND (max_rent IS NULL OR rent <= max_rent)
+    AND (search_gender IS NULL OR gender = search_gender OR gender = 'any')
+    AND (search_room_type IS NULL OR room_type = search_room_type)
+  ORDER BY created_at DESC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+GRANT EXECUTE ON FUNCTION search_pgs TO authenticated;
+GRANT EXECUTE ON FUNCTION search_pgs TO anon;
+
+-- 4️⃣ Helper view to get user profiles with email from auth.users
+CREATE OR REPLACE VIEW user_profiles AS
+SELECT 
+  p.*,
+  u.email,
+  u.email_confirmed_at,
+  u.created_at as auth_created_at
+FROM profiles p
+JOIN auth.users u ON u.id = p.id;
+
+-- Grant access to the view
+GRANT SELECT ON user_profiles TO authenticated;
+GRANT SELECT ON user_profiles TO anon;
+

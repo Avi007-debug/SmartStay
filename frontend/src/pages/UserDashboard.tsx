@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { authService, savedPGsService, storageService } from "@/lib/supabase";
+import { authService, savedPGsService, storageService, notificationsService } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -45,6 +45,14 @@ const UserDashboard = () => {
       // Load saved PGs
       const saved = await savedPGsService.getAll();
       setSavedPGs(saved || []);
+      
+      // Load notifications
+      const notifs = await notificationsService.getAll();
+      setNotifications(notifs || []);
+      
+      // TODO: Load recommendations from AI service
+      // For now using empty array - will be populated when recommendation engine is ready
+      setRecommendations([]);
       
     } catch (error) {
       console.error('Error loading user:', error);

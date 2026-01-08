@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { 
   Users, Building2, Shield, Flag, Search, CheckCircle, XCircle, 
-  Eye, MoreHorizontal, FileText, AlertTriangle, ExternalLink, Download
+  Eye, MoreHorizontal, FileText, AlertTriangle, ExternalLink, Download, Loader2
 } from "lucide-react";
 import {
   Dialog,
@@ -28,17 +28,139 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { authService, adminService, verificationService } from "@/lib/supabase";
 
 const AdminDashboard = () => {
-  const users = [
-    { id: 1, name: "John Doe", email: "john@example.com", type: "Student", verified: true },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", type: "Owner", verified: true },
-  ];
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalOwners: 0,
+    totalListings: 0,
+    pendingVerifications: 0,
+    flaggedContent: 0,
+  });
+  const [users, setUsers] = useState<any[]>([]);
+  const [listings, setListings] = useState<any[]>([]);
+  const [verifications, setVerifications] = useState<any[]>([]);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [processingVerification, setProcessingVerification] = useState(false);
 
-  const listings = [
-    { id: 1, name: "Sunshine PG", owner: "Rajesh Kumar", status: "active", verified: true },
-    { id: 2, name: "Green Valley Hostel", owner: "Priya Sharma", status: "pending", verified: false },
-  ];
+  useEffect(() => {
+    checkAdminAccess();
+  }, []);
+
+  const checkAdminAccess = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      
+      if (!user || user.role !== 'admin') {
+        toast({
+          title: "Access Denied",
+          description: "You do not have admin privileges",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+
+      // Load all admin data
+      await loadAdminData();
+    } catch (error) {
+      console.error("Error checking admin access:", error);
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAdminData = async () => {
+    try {
+      // Load stats
+      const statsData = await adminService.getStats();
+      setStats(statsData);
+
+      // Load users
+      const usersData = await adminService.getAllUsers();
+      setUsers(usersData || []);
+
+      // Load listings
+      const listingsData = await adminService.getAllListings();
+      setListings(listingsData || []);
+
+      // Load pending verifications
+      const verificationsData = await verificationService.getPendingVerifications();
+      setVerifications(verificationsData || []);
+    } catch (error) {
+      console.error("Error loading admin data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load admin data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveVerification = async (documentId: string) => {
+    setProcessingVerification(true);
+    try {
+      await verificationService.approveVerification(documentId, reviewNotes);
+      toast({
+        title: "Verification Approved",
+        description: "Owner has been notified and marked as verified",
+      });
+      setReviewNotes("");
+      // Reload data
+      await loadAdminData();
+    } catch (error) {
+      console.error("Error approving verification:", error);
+      toast({
+        title: "Error",
+        description: "Failed to approve verification",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingVerification(false);
+    }
+  };
+
+  const handleRejectVerification = async (documentId: string) => {
+    setProcessingVerification(true);
+    try {
+      await verificationService.rejectVerification(documentId, reviewNotes);
+      toast({
+        title: "Verification Rejected",
+        description: "Owner has been notified",
+        variant: "destructive",
+      });
+      setReviewNotes("");
+      // Reload data
+      await loadAdminData();
+    } catch (error) {
+      console.error("Error rejecting verification:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reject verification",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingVerification(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -56,7 +178,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-3xl font-bold">1,247</p>
+                  <p className="text-3xl font-bold">{stats.totalUsers}</p>
                 </div>
                 <Users className="h-10 w-10 text-primary/20" />
               </div>
@@ -68,7 +190,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Listings</p>
-                  <p className="text-3xl font-bold">342</p>
+                  <p className="text-3xl font-bold">{stats.totalListings}</p>
                 </div>
                 <Building2 className="h-10 w-10 text-primary/20" />
               </div>
@@ -79,22 +201,22 @@ const AdminDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Verified Listings</p>
-                  <p className="text-3xl font-bold">287</p>
+                  <p className="text-sm text-muted-foreground">Total Owners</p>
+                  <p className="text-3xl font-bold">{stats.totalOwners}</p>
                 </div>
                 <Shield className="h-10 w-10 text-primary/20" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2">
+          <Card className="border-2 border-orange-200 bg-orange-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Reports</p>
-                  <p className="text-3xl font-bold">12</p>
+                  <p className="text-sm text-orange-700">Pending Verifications</p>
+                  <p className="text-3xl font-bold text-orange-700">{stats.pendingVerifications}</p>
                 </div>
-                <Flag className="h-10 w-10 text-primary/20" />
+                <FileText className="h-10 w-10 text-orange-500" />
               </div>
             </CardContent>
           </Card>
@@ -130,29 +252,37 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
-                      <tr key={user.id} className="border-b hover:bg-muted/50">
-                        <td className="p-4">{user.name}</td>
-                        <td className="p-4 text-muted-foreground">{user.email}</td>
-                        <td className="p-4">
-                          <Badge variant="secondary">{user.type}</Badge>
-                        </td>
-                        <td className="p-4">
-                          {user.verified ? (
-                            <Badge className="bg-success">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Verified
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Unverified</Badge>
-                          )}
-                        </td>
-                        <td className="p-4 text-right">
-                          <Button variant="ghost" size="sm">View</Button>
-                          <Button variant="ghost" size="sm">Edit</Button>
+                    {users.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                          No users found
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      users.map((user) => (
+                        <tr key={user.id} className="border-b hover:bg-muted/50">
+                          <td className="p-4">{user.full_name || 'N/A'}</td>
+                          <td className="p-4 text-muted-foreground">{user.email || 'N/A'}</td>
+                          <td className="p-4">
+                            <Badge variant="secondary">{user.role}</Badge>
+                          </td>
+                          <td className="p-4">
+                            {user.is_verified ? (
+                              <Badge className="bg-success">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Verified
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Unverified</Badge>
+                            )}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button variant="ghost" size="sm">View</Button>
+                            <Button variant="ghost" size="sm">Edit</Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </CardContent>
@@ -181,28 +311,36 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {listings.map((listing) => (
-                      <tr key={listing.id} className="border-b hover:bg-muted/50">
-                        <td className="p-4">{listing.name}</td>
-                        <td className="p-4 text-muted-foreground">{listing.owner}</td>
-                        <td className="p-4">
-                          <Badge variant={listing.status === "active" ? "default" : "secondary"}>
-                            {listing.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4">
-                          {listing.verified ? (
-                            <CheckCircle className="h-5 w-5 text-success" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </td>
-                        <td className="p-4 text-right">
-                          <Button variant="ghost" size="sm">View</Button>
-                          <Button variant="ghost" size="sm">Verify</Button>
+                    {listings.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                          No listings found
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      listings.map((listing) => (
+                        <tr key={listing.id} className="border-b hover:bg-muted/50">
+                          <td className="p-4">{listing.name}</td>
+                          <td className="p-4 text-muted-foreground">{listing.owner?.full_name || 'Unknown'}</td>
+                          <td className="p-4">
+                            <Badge variant={listing.status === "active" ? "default" : "secondary"}>
+                              {listing.status}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            {listing.is_verified ? (
+                              <CheckCircle className="h-5 w-5 text-success" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button variant="ghost" size="sm">View</Button>
+                            <Button variant="ghost" size="sm">Verify</Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </CardContent>
@@ -278,104 +416,138 @@ const AdminDashboard = () => {
                 <CardDescription>Review pending verification requests from property owners</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {[
-                  { 
-                    id: 1, 
-                    ownerName: "Rajesh Kumar", 
-                    property: "Sunshine PG", 
-                    submittedDate: "1 day ago",
-                    documents: ["Trade License", "Occupancy Certificate", "Fire NOC"],
-                    status: "pending"
-                  },
-                  { 
-                    id: 2, 
-                    ownerName: "Priya Sharma", 
-                    property: "Green Valley Hostel", 
-                    submittedDate: "3 days ago",
-                    documents: ["Trade License", "Shop Registration"],
-                    status: "pending"
-                  },
-                ].map((request) => (
-                  <Card key={request.id} className="border-2">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="flex items-start gap-3 flex-1">
-                          <Avatar className="h-12 w-12">
-                            <AvatarFallback>{request.ownerName[0]}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-lg">{request.ownerName}</h4>
-                            <p className="text-sm text-muted-foreground mb-1">{request.property}</p>
-                            <p className="text-xs text-muted-foreground">Submitted {request.submittedDate}</p>
+                {verifications.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No pending verification requests</p>
+                  </div>
+                ) : (
+                  verifications.map((verification) => (
+                    <Card key={verification.id} className="border-2">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                          <div className="flex items-start gap-3 flex-1">
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback>{verification.owner?.full_name?.[0] || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-lg">{verification.owner?.full_name || 'Unknown Owner'}</h4>
+                              <p className="text-sm text-muted-foreground mb-1">{verification.pg?.name || 'Property'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Submitted {new Date(verification.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
+                          <Badge variant="secondary">{verification.status}</Badge>
                         </div>
-                        <Badge variant="secondary">{request.status}</Badge>
-                      </div>
 
-                      <Separator className="my-4" />
+                        <Separator className="my-4" />
 
-                      <div className="space-y-3 mb-4">
-                        <h5 className="font-medium text-sm">Submitted Documents:</h5>
-                        {request.documents.map((doc, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                        <div className="space-y-3 mb-4">
+                          <h5 className="font-medium text-sm">Document Type:</h5>
+                          <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-medium">{doc}</span>
+                              <span className="text-sm font-medium capitalize">{verification.document_type.replace('_', ' ')}</span>
                             </div>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => window.open(verification.file_url, '_blank')}
+                            >
                               <Download className="h-4 w-4 mr-2" />
                               View
                             </Button>
                           </div>
-                        ))}
-                      </div>
+                        </div>
 
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="w-full mb-2">
-                            <Eye className="h-4 w-4 mr-2" />
-                            Review Documents
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Verification Review</DialogTitle>
-                            <DialogDescription>
-                              Review submitted documents and approve or reject the verification request
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 my-4">
-                            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                              <FileText className="h-16 w-16 text-muted-foreground" />
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" className="w-full mb-2">
+                              <Eye className="h-4 w-4 mr-2" />
+                              Review Document
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Verification Review</DialogTitle>
+                              <DialogDescription>
+                                Review submitted document and approve or reject the verification request
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 my-4">
+                              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                                <FileText className="h-16 w-16 text-muted-foreground" />
+                              </div>
+                              <Textarea 
+                                placeholder="Add notes or reasons for decision..." 
+                                rows={3}
+                                value={reviewNotes}
+                                onChange={(e) => setReviewNotes(e.target.value)}
+                              />
                             </div>
-                            <Textarea placeholder="Add notes or reasons for decision..." rows={3} />
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline">
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Reject
-                            </Button>
-                            <Button variant="default" onClick={() => toast({ title: "Verification approved!" })}>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Approve
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                            <DialogFooter>
+                              <Button 
+                                variant="outline"
+                                disabled={processingVerification}
+                                onClick={() => handleRejectVerification(verification.id)}
+                              >
+                                {processingVerification ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                )}
+                                Reject
+                              </Button>
+                              <Button 
+                                variant="default" 
+                                disabled={processingVerification}
+                                onClick={() => handleApproveVerification(verification.id)}
+                              >
+                                {processingVerification ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                )}
+                                Approve
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
 
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="default" 
-                          className="flex-1"
-                          onClick={() => toast({ title: "Verification approved", description: "Owner has been notified" })}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                        <Button 
-                          variant="destructive" 
-                          className="flex-1"
-                          onClick={() => toast({ title: "Verification rejected", variant: "destructive" })}
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="default" 
+                            className="flex-1"
+                            disabled={processingVerification}
+                            onClick={() => handleApproveVerification(verification.id)}
+                          >
+                            {processingVerification ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Approve
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            className="flex-1"
+                            disabled={processingVerification}
+                            onClick={() => handleRejectVerification(verification.id)}
+                          >
+                            {processingVerification ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <XCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </CardContent>
                         >
                           <XCircle className="h-4 w-4 mr-2" />
                           Reject

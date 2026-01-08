@@ -739,6 +739,200 @@ export const storageService = {
   },
 }
 
+// ============================================
+// VERIFICATION SERVICE
+// ============================================
+export const verificationService = {
+  // Get all pending verifications (Admin only)
+  async getPendingVerifications() {
+    const { data, error } = await supabase
+      .from('verification_documents')
+      .select(`
+        *,
+        owner:profiles!owner_id(id, full_name, email),
+        pg:pg_listings!pg_id(id, name)
+      `)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Get all verifications (Admin only)
+  async getAllVerifications() {
+    const { data, error } = await supabase
+      .from('verification_documents')
+      .select(`
+        *,
+        owner:profiles!owner_id(id, full_name, email),
+        pg:pg_listings!pg_id(id, name),
+        reviewer:profiles!reviewed_by(id, full_name)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Approve verification (Admin only)
+  async approveVerification(documentId: string, notes?: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('verification_documents')
+      .update({
+        status: 'approved',
+        reviewed_by: user.id,
+        review_notes: notes,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', documentId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Also update owner's is_verified status
+    if (data) {
+      await supabase
+        .from('profiles')
+        .update({ is_verified: true })
+        .eq('id', data.owner_id)
+    }
+
+    return data
+  },
+
+  // Reject verification (Admin only)
+  async rejectVerification(documentId: string, notes?: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('verification_documents')
+      .update({
+        status: 'rejected',
+        reviewed_by: user.id,
+        review_notes: notes,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', documentId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Submit verification documents (Owner)
+  async submitDocument(pgId: string | null, documentType: string, fileUrl: string, fileName: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('verification_documents')
+      .insert({
+        owner_id: user.id,
+        pg_id: pgId,
+        document_type: documentType,
+        file_url: fileUrl,
+        file_name: fileName,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+}
+
+// ============================================
+// ADMIN SERVICE
+// ============================================
+export const adminService = {
+  // Get all users
+  async getAllUsers() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Get all listings
+  async getAllListings() {
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .select(`
+        *,
+        owner:profiles!owner_id(id, full_name, email, phone)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Get dashboard stats
+  async getStats() {
+    // Get counts in parallel
+    const [usersResult, ownersResult, listingsResult, pendingVerfResult] = await Promise.all([
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'owner'),
+      supabase.from('pg_listings').select('id', { count: 'exact', head: true }),
+      supabase.from('verification_documents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ])
+
+    return {
+      totalUsers: usersResult.count || 0,
+      totalOwners: ownersResult.count || 0,
+      totalListings: listingsResult.count || 0,
+      pendingVerifications: pendingVerfResult.count || 0,
+      flaggedContent: 0, // TODO: Implement reports/flags table
+    }
+  },
+
+  // Toggle user status (suspend/activate)
+  async toggleUserStatus(userId: string, suspend: boolean) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ is_active: !suspend })
+      .eq('id', userId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Delete user (Admin only)
+  async deleteUser(userId: string) {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (error) throw error
+  },
+
+  // Toggle listing status
+  async toggleListingStatus(listingId: string, status: 'active' | 'inactive' | 'flagged') {
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .update({ status })
+      .eq('id', listingId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+}
+
 // Export all services
 export default {
   auth: authService,
@@ -751,4 +945,6 @@ export default {
   vacancyAlerts: vacancyAlertsService,
   preferences: preferencesService,
   storage: storageService,
+  verification: verificationService,
+  admin: adminService,
 }

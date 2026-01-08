@@ -787,10 +787,14 @@ const PGDetail = () => {
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
                             <Avatar>
-                              <AvatarFallback>{review.user?.profile?.full_name?.[0] || 'U'}</AvatarFallback>
+                              <AvatarFallback>
+                                {review.is_anonymous ? 'A' : (review.user?.full_name?.[0] || 'U')}
+                              </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-semibold">{review.user?.profile?.full_name || 'Anonymous'}</p>
+                              <p className="font-semibold">
+                                {review.is_anonymous ? 'Anonymous' : (review.user?.full_name || 'Anonymous')}
+                              </p>
                               <p className="text-sm text-muted-foreground">
                                 {new Date(review.created_at).toLocaleDateString()}
                               </p>
