@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { pgService, storageService } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { PGCardSkeleton } from "@/components/SkeletonLoaders";
 
 const Search = () => {
   const { toast } = useToast();
@@ -262,8 +263,10 @@ const Search = () => {
             </div>
             
             {loading ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">Loading PG listings...</p>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <PGCardSkeleton key={i} />
+                ))}
               </div>
             ) : (
             <div className="space-y-4">

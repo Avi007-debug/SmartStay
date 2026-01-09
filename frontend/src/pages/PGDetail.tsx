@@ -44,10 +44,12 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { pgService, reviewsService, storageService, savedPGsService, authService, qnaService } from "@/lib/supabase";
 import { Loader2, Edit } from "lucide-react";
+import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 
 const PGDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToRecentlyViewed } = useRecentlyViewed();
   const [loading, setLoading] = useState(true);
   const [pgData, setPgData] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -259,6 +261,15 @@ const PGDetail = () => {
       const pg = await pgService.getById(id);
       if (pg) {
         setPgData(pg);
+        
+        // Add to recently viewed
+        addToRecentlyViewed({
+          id: pg.id,
+          name: pg.name,
+          city: pg.city || pg.address?.city || '',
+          rent: pg.rent,
+          image: pg.images?.[0]
+        });
         
         // Load reviews
         const pgReviews = await reviewsService.getByPGId(id);

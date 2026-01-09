@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import google.generativeai as genai
-import os
 from dotenv import load_dotenv
+import os
 import json
+import requests
+
+# AI adapter
+from ai_provider import ai
 
 # Load environment variables
 load_dotenv()
@@ -11,15 +14,6 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:8080", "http://localhost:5173"])
-
-# Configure Gemini API
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
-else:
-    print("WARNING: GEMINI_API_KEY not found in environment variables")
-    model = None
 
 # ============================================
 # AI ENDPOINTS
@@ -32,8 +26,8 @@ def sentiment_analysis():
     Expected input: { "reviews": [...], "pg_name": "..." }
     """
     try:
-        if not model:
-            return jsonify({"error": "Gemini API not configured"}), 500
+        if not ai.is_configured():
+            return jsonify({"error": "AI provider not configured"}), 500
         
         data = request.json
         reviews = data.get('reviews', [])
@@ -76,8 +70,8 @@ Return ONLY a valid JSON object with this exact structure:
   }}
 }}"""
         
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
+        response_text = ai.generate(prompt)
+        result_text = response_text.strip()
         
         # Remove markdown code blocks if present
         if result_text.startswith('```json'):
@@ -102,8 +96,8 @@ def detect_hidden_charges():
     Expected input: { "description": "...", "rent": 8500, "deposit": 5000, ... }
     """
     try:
-        if not model:
-            return jsonify({"error": "Gemini API not configured"}), 500
+        if not ai.is_configured():
+            return jsonify({"error": "AI provider not configured"}), 500
         
         data = request.json
         description = data.get('description', '')
@@ -138,8 +132,8 @@ Return ONLY a valid JSON object:
   "transparency_score": <number 0-100>
 }}"""
         
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
+        response_text = ai.generate(prompt)
+        result_text = response_text.strip()
         
         # Remove markdown code blocks
         if result_text.startswith('```json'):
@@ -161,30 +155,93 @@ Return ONLY a valid JSON object:
 def estimate_travel_time():
     """
     Estimate travel time between PG and destination using OpenRouteService
-    Expected input: { "from": {"lat": 28.6139, "lng": 77.2090}, "to": "destination", "modes": ["foot-walking", "cycling-regular", "driving-car"] }
+    Expected input: { "from": {"lat": 28.6139, "lng": 77.2090}, "to": {"lat": 28.5355, "lng": 77.3910}, "modes": ["foot-walking", "cycling-regular", "driving-car"] }
     
-    Alternative to Google Maps API - uses OpenRouteService (free, open source)
+    Uses OpenRouteService API - free and open source alternative to Google Maps
     Get API key from: https://openrouteservice.org/dev/#/signup
     """
     try:
         data = request.json
         from_coords = data.get('from', {})
-        to_coords = data.get('to', '')
+        to_coords = data.get('to', {})
         modes = data.get('modes', ['foot-walking', 'cycling-regular', 'driving-car'])
         
+        # Validate coordinates
+        if not from_coords.get('lat') or not from_coords.get('lng'):
+            return jsonify({"error": "Missing 'from' coordinates (lat, lng)"}), 400
+        if not to_coords.get('lat') or not to_coords.get('lng'):
+            return jsonify({"error": "Missing 'to' coordinates (lat, lng)"}), 400
+        
         # OpenRouteService API integration
-        # In production, add OPENROUTE_API_KEY to .env and use actual API
-        # For now, return estimated data based on coordinates
+        OPENROUTE_API_KEY = os.getenv('OPENROUTE_API_KEY')
         
-        # Example: If you have OpenRouteService API key:
-        # OPENROUTE_API_KEY = os.getenv('OPENROUTE_API_KEY')
-        # if OPENROUTE_API_KEY:
-        #     url = "https://api.openrouteservice.org/v2/directions/..."
-        #     headers = {"Authorization": OPENROUTE_API_KEY}
-        #     response = requests.get(url, headers=headers)
-        #     return jsonify(response.json())
+        if OPENROUTE_API_KEY and OPENROUTE_API_KEY != 'your_openroute_api_key_here':
+            # Real API implementation
+            results = []
+            base_url = "https://api.openrouteservice.org/v2/directions"
+            
+            # Map frontend modes to OpenRouteService profiles
+            mode_mapping = {
+                'foot-walking': 'foot-walking',
+                'cycling-regular': 'cycling-regular', 
+                'driving-car': 'driving-car',
+                'walking': 'foot-walking',
+                'cycling': 'cycling-regular',
+                'driving': 'driving-car'
+            }
+            
+            headers = {
+                "Authorization": OPENROUTE_API_KEY,
+                "Content-Type": "application/json"
+            }
+            
+            for mode in modes:
+                try:
+                    profile = mode_mapping.get(mode, mode)
+                    url = f"{base_url}/{profile}"
+                    
+                    payload = {
+                        "coordinates": [
+                            [from_coords['lng'], from_coords['lat']],  # OpenRouteService uses [lng, lat]
+                            [to_coords['lng'], to_coords['lat']]
+                        ]
+                    }
+                    
+                    response = requests.post(url, json=payload, headers=headers, timeout=10)
+                    
+                    if response.status_code == 200:
+                        route_data = response.json()
+                        
+                        if 'routes' in route_data and len(route_data['routes']) > 0:
+                            route = route_data['routes'][0]
+                            summary = route.get('summary', {})
+                            
+                            # Convert seconds to minutes
+                            duration_min = round(summary.get('duration', 0) / 60)
+                            # Distance in meters
+                            distance_m = round(summary.get('distance', 0))
+                            
+                            results.append({
+                                "mode": mode.replace('foot-walking', 'walking').replace('cycling-regular', 'cycling').replace('driving-car', 'driving'),
+                                "duration": duration_min,  # in minutes
+                                "distance": distance_m  # in meters
+                            })
+                    else:
+                        print(f"OpenRouteService API error for {mode}: {response.status_code}")
+                        
+                except Exception as e:
+                    print(f"Error fetching route for {mode}: {str(e)}")
+                    continue
+            
+            if results:
+                return jsonify({
+                    "modes": results,
+                    "service": "OpenRouteService",
+                    "from": from_coords,
+                    "to": to_coords
+                })
         
-        # Fallback: Return estimated data
+        # Fallback: Return estimated data if no API key or API fails
         return jsonify({
             "modes": [
                 {
@@ -199,11 +256,13 @@ def estimate_travel_time():
                 },
                 {
                     "mode": "driving",
-                    "duration": 12,
+                    "duration": 5,
                     "distance": 2100
                 }
             ],
-            "service": "OpenRouteService (Demo Mode)"
+            "service": "OpenRouteService (Demo Mode - Add API key to .env)",
+            "from": from_coords,
+            "to": to_coords
         })
         
     except Exception as e:
@@ -217,9 +276,9 @@ def generate_description():
     Expected input: { "amenities": [...], "location": "...", "rent": 8500, ... }
     """
     try:
-        if not model:
-            return jsonify({"error": "Gemini API not configured"}), 500
-        
+        if not ai.is_configured():
+            return jsonify({"error": "AI provider not configured"}), 500
+
         data = request.json
         amenities = data.get('amenities', [])
         location = data.get('location', '')
@@ -241,11 +300,11 @@ Write a 3-4 sentence description that:
 
 Return only the description text, no JSON."""
         
-        response = model.generate_content(prompt)
-        description = response.text.strip()
-        
+        response_text = ai.generate(prompt)
+        description = response_text.strip()
+
         return jsonify({"description": description})
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -255,11 +314,16 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "gemini_configured": model is not None
+        "ai_provider_configured": ai.is_configured(),
+        "ai_provider": os.getenv('AI_PROVIDER', 'groq')
     })
 
 
 if __name__ == '__main__':
     print("Starting SmartStay AI Backend...")
-    print(f"Gemini API configured: {model is not None}")
+    print(f"AI provider configured: {ai.is_configured()} (provider={os.getenv('AI_PROVIDER', 'groq')})")
+    if ai.is_configured():
+        print("✅ AI provider initialized successfully")
+    else:
+        print("⚠️  Warning: AI provider not configured. Set GROQ_API_KEY or GEMINI_API_KEY in .env")
     app.run(debug=True, host='0.0.0.0', port=5000)

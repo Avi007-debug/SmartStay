@@ -1,0 +1,64 @@
+import { useEffect } from 'react';
+
+export interface RecentlyViewedPG {
+  id: string;
+  name: string;
+  city: string;
+  rent: number;
+  image?: string;
+  viewedAt: number;
+}
+
+const MAX_RECENT_ITEMS = 10;
+const STORAGE_KEY = 'smartstay_recently_viewed';
+
+export const useRecentlyViewed = () => {
+  const addToRecentlyViewed = (pg: Omit<RecentlyViewedPG, 'viewedAt'>) => {
+    try {
+      const existing = getRecentlyViewed();
+      
+      // Remove if already exists
+      const filtered = existing.filter(item => item.id !== pg.id);
+      
+      // Add to beginning with timestamp
+      const updated: RecentlyViewedPG[] = [
+        { ...pg, viewedAt: Date.now() },
+        ...filtered
+      ].slice(0, MAX_RECENT_ITEMS);
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving to recently viewed:', error);
+    }
+  };
+
+  const getRecentlyViewed = (): RecentlyViewedPG[] => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return [];
+      
+      const items: RecentlyViewedPG[] = JSON.parse(stored);
+      
+      // Filter out items older than 30 days
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      return items.filter(item => item.viewedAt > thirtyDaysAgo);
+    } catch (error) {
+      console.error('Error reading recently viewed:', error);
+      return [];
+    }
+  };
+
+  const clearRecentlyViewed = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing recently viewed:', error);
+    }
+  };
+
+  return {
+    addToRecentlyViewed,
+    getRecentlyViewed,
+    clearRecentlyViewed
+  };
+};

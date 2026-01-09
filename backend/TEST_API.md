@@ -5,15 +5,15 @@
 ### Backend Status
 - **Running**: Flask on `http://localhost:5000`
 - **AI Service**: Google Gemini API (Sentiment Analysis, Hidden Charges, Description Generator)
-- **Travel Time**: OpenRouteService (NOT CONNECTED - using demo mode)
+- **Travel Time**: OpenRouteService (✅ Implemented - add API key to enable real data)
 - **Database**: Supabase (connected via frontend)
 
 ### What's Working
 ✅ Sentiment Analysis (Gemini AI)
 ✅ Hidden Charge Detection (Gemini AI)  
 ✅ AI Description Generator (Gemini AI)
+✅ Travel Time Estimation (OpenRouteService - falls back to demo mode without API key)
 ✅ Health Check Endpoint
-❌ Travel Time (OpenRouteService - demo mode only, API not integrated)
 
 ---
 
@@ -171,60 +171,84 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/ai/hidden-charges" -Method Pos
 
 ---
 
-### 4. Travel Time Estimation (⚠️ DEMO MODE)
+### 4. Travel Time Estimation
 **POST** `/api/ai/travel-time`
 
-**Purpose**: Estimate travel time using OpenRouteService API
+**Purpose**: Estimate travel time using OpenRouteService API (free, open-source alternative to Google Maps)
 
 **Current Status**: 
-- ❌ **NOT CONNECTED** - OpenRouteService API key not configured
-- Returns demo/fallback data only
-- To enable: Add `OPENROUTE_API_KEY` to `.env` and implement actual API call
+- ✅ **FULLY IMPLEMENTED** - Ready to use with OpenRouteService API
+- Falls back to demo data if API key not configured
+- To enable real data: Add `OPENROUTE_API_KEY` to `.env`
 
 **Request Body**:
 ```json
 {
-  "from": {"lat": 28.6139, "lng": 77.2090},
-  "to": "IIT Delhi",
+  "from": {"lat": 12.9716, "lng": 77.5946},
+  "to": {"lat": 12.9352, "lng": 77.6245},
   "modes": ["foot-walking", "cycling-regular", "driving-car"]
 }
 ```
+
+**Available Modes**:
+- `foot-walking` or `walking` - Walking directions
+- `cycling-regular` or `cycling` - Cycling directions
+- `driving-car` or `driving` - Driving directions
 
 **cURL Test**:
 ```bash
 curl -X POST http://localhost:5000/api/ai/travel-time ^
   -H "Content-Type: application/json" ^
-  -d "{\"from\": {\"lat\": 28.6139, \"lng\": 77.2090}, \"to\": \"IIT Delhi\", \"modes\": [\"foot-walking\", \"cycling-regular\", \"driving-car\"]}"
+  -d "{\"from\": {\"lat\": 12.9716, \"lng\": 77.5946}, \"to\": {\"lat\": 12.9352, \"lng\": 77.6245}, \"modes\": [\"foot-walking\", \"cycling-regular\", \"driving-car\"]}"
 ```
 
 **PowerShell Test**:
 ```powershell
 $body = @{
-    from = @{lat = 28.6139; lng = 77.2090}
-    to = "IIT Delhi"
+    from = @{lat = 12.9716; lng = 77.5946}
+    to = @{lat = 12.9352; lng = 77.6245}
     modes = @("foot-walking", "cycling-regular", "driving-car")
 } | ConvertTo-Json
 
 Invoke-RestMethod -Uri "http://localhost:5000/api/ai/travel-time" -Method Post -Body $body -ContentType "application/json"
 ```
 
-**Current Response (Demo Data)**:
+**Response with API Key (Real Data)**:
+```json
+{
+  "modes": [
+    {"mode": "walking", "duration": 45, "distance": 3500},
+    {"mode": "cycling", "duration": 18, "distance": 3800},
+    {"mode": "driving", "duration": 12, "distance": 4200}
+  ],
+  "service": "OpenRouteService",
+  "from": {"lat": 12.9716, "lng": 77.5946},
+  "to": {"lat": 12.9352, "lng": 77.6245}
+}
+```
+
+**Response without API Key (Demo Data)**:
 ```json
 {
   "modes": [
     {"mode": "walking", "duration": 15, "distance": 1200},
     {"mode": "cycling", "duration": 8, "distance": 1500},
-    {"mode": "driving", "duration": 12, "distance": 2100}
+    {"mode": "driving", "duration": 5, "distance": 2100}
   ],
-  "service": "OpenRouteService (Demo Mode)"
+  "service": "OpenRouteService (Demo Mode - Add API key to .env)",
+  "from": {"lat": 12.9716, "lng": 77.5946},
+  "to": {"lat": 12.9352, "lng": 77.6245}
 }
 ```
 
 **To Enable Real Travel Time**:
-1. Get API key from https://openrouteservice.org/dev/#/signup
-2. Add to `.env`: `OPENROUTE_API_KEY=your_key_here`
-3. Uncomment OpenRouteService API code in `app.py` (lines 177-183)
-4. Install `requests` package (already in requirements.txt)
+1. Sign up at https://openrouteservice.org/dev/#/signup (free)
+2. Get your API key from the dashboard
+3. Add to `backend/.env`: `OPENROUTE_API_KEY=your_actual_key_here`
+4. Restart Flask server
+5. Test endpoint - should return real route data
+
+**Note**: Duration is in minutes, distance is in meters
 
 ---
 

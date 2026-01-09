@@ -1,4 +1,4 @@
-# SmartStay Backend - API Test Script
+﻿# SmartStay Backend - API Test Script
 # Run this to test all backend endpoints
 
 Write-Host "`n╔══════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -16,7 +16,11 @@ Write-Host "━━━━━━━━━━━━━━━━━━━━━━�
 try {
     $health = Invoke-RestMethod -Uri "$baseUrl/health" -Method Get -TimeoutSec 5
     Write-Host "✅ Backend Status: $($health.status)" -ForegroundColor Green
-    Write-Host "✅ Gemini API: $(if ($health.gemini_configured) { 'Connected' } else { 'Not Configured' })" -ForegroundColor $(if ($health.gemini_configured) { 'Green' } else { 'Red' })
+    Write-Host "✅ AI Provider: $($health.ai_provider)" -ForegroundColor Cyan
+    Write-Host "✅ AI Configured: $(if ($health.ai_provider_configured) { 'Connected' } else { 'Not Configured' })" -ForegroundColor $(if ($health.ai_provider_configured) { 'Green' } else { 'Red' })
+    if ($health.ai_provider_configured) {
+        Write-Host "   Using Groq (llama-3.1-8b-instant)" -ForegroundColor Green
+    }
     $testsPassed++
 } catch {
     Write-Host "❌ Health check failed: $_" -ForegroundColor Red
@@ -87,24 +91,36 @@ try {
     $testsFailed++
 }
 
-# Test 4: Travel Time (Demo Mode)
+# Test 4: Travel Time Estimation
 Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-Write-Host "🚗 Test 4: Travel Time Estimation" -ForegroundColor Yellow
+Write-Host "🚗 Test 4: Travel Time Estimation (OpenRouteService)" -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
 try {
     $travelBody = @{
-        from = @{lat = 28.6139; lng = 77.2090}
-        to = "College Campus"
+        from = @{lat = 12.9716; lng = 77.5946}
+        to = @{lat = 12.9352; lng = 77.6245}
         modes = @("foot-walking", "cycling-regular", "driving-car")
     } | ConvertTo-Json -Depth 10
 
     $travel = Invoke-RestMethod -Uri "$baseUrl/api/ai/travel-time" -Method Post -Body $travelBody -ContentType "application/json" -TimeoutSec 10
     
-    Write-Host "⚠️  Service: $($travel.service)" -ForegroundColor Yellow
-    Write-Host "   (OpenRouteService API not connected - using demo data)" -ForegroundColor DarkYellow
+    Write-Host "✅ Service: $($travel.service)" -ForegroundColor $(if ($travel.service -like "*Demo Mode*") { 'Yellow' } else { 'Green' })
+    if ($travel.service -like "*Demo Mode*") {
+        Write-Host "   ⚠️  Add OPENROUTE_API_KEY to .env for real travel time data" -ForegroundColor DarkYellow
+    } else {
+        Write-Host "   ✅ Using real OpenRouteService API data" -ForegroundColor Green
+    }
+    Write-Host "   From: ($($travel.from.lat), $($travel.from.lng))" -ForegroundColor Gray
+    Write-Host "   To: ($($travel.to.lat), $($travel.to.lng))" -ForegroundColor Gray
     Write-Host "   Travel Modes:" -ForegroundColor White
     foreach ($mode in $travel.modes) {
-        Write-Host "      🚶 $($mode.mode): $($mode.duration) min ($($mode.distance)m)" -ForegroundColor Cyan
+        $icon = switch ($mode.mode) {
+            "walking" { "🚶" }
+            "cycling" { "🚴" }
+            "driving" { "🚗" }
+            default { "🚶" }
+        }
+        Write-Host "      $icon $($mode.mode): $($mode.duration) min ($([math]::Round($mode.distance/1000, 2)) km)" -ForegroundColor Cyan
     }
     $testsPassed++
 } catch {
