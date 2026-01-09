@@ -220,6 +220,37 @@ const PGDetail = () => {
     }
   };
 
+  const handleVote = async (reviewId: string, voteType: 'up' | 'down') => {
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please login to vote on reviews",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await reviewsService.vote(reviewId, voteType);
+      
+      // Reload reviews to show updated vote counts
+      const pgReviews = await reviewsService.getByPGId(id!);
+      setReviews(pgReviews || []);
+      
+      toast({
+        title: "Vote Recorded",
+        description: `You ${voteType === 'up' ? 'upvoted' : 'downvoted'} this review`,
+      });
+    } catch (error) {
+      console.error("Error voting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to record your vote. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const loadPGData = async () => {
     if (!id) return;
     
@@ -808,6 +839,26 @@ const PGDetail = () => {
                         </div>
                         <p className="text-muted-foreground mb-4">{review.comment}</p>
                         <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleVote(review.id, 'up')}
+                            >
+                              <ThumbsUp className="h-4 w-4" />
+                              <span>{review.upvotes || 0}</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleVote(review.id, 'down')}
+                            >
+                              <ThumbsDown className="h-4 w-4" />
+                              <span>{review.downvotes || 0}</span>
+                            </Button>
+                          </div>
                           <span className="text-sm text-muted-foreground">
                             {review.helpful_count || 0} found this helpful
                           </span>

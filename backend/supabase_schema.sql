@@ -501,6 +501,7 @@ CREATE TRIGGER update_chat_on_message AFTER INSERT ON messages
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pg_listings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE review_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
@@ -519,8 +520,18 @@ CREATE POLICY "Users can update own profile" ON profiles
 CREATE POLICY "PG listings are viewable by everyone" ON pg_listings
   FOR SELECT USING (status = 'active' OR owner_id = auth.uid());
 
-CREATE POLICY "Owners can insert listings" ON pg_listings
-  FOR INSERT WITH CHECK (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Owners can insert listings" ON pg_listings;
+
+CREATE POLICY "Only owners can create listings"
+  ON pg_listings
+  FOR INSERT
+  WITH CHECK (
+    owner_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'owner'
+    )
+  );
 
 CREATE POLICY "Owners can update own listings" ON pg_listings
   FOR UPDATE USING (owner_id = auth.uid());
@@ -537,6 +548,19 @@ CREATE POLICY "Users can insert reviews" ON reviews
 
 CREATE POLICY "Users can update own reviews" ON reviews
   FOR UPDATE USING (user_id = auth.uid());
+
+-- Review Votes: Users can manage their own votes
+CREATE POLICY "Anyone can view votes" ON review_votes
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can vote" ON review_votes
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update own votes" ON review_votes
+  FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete own votes" ON review_votes
+  FOR DELETE USING (user_id = auth.uid());
 
 -- Chats: Only participants can access
 CREATE POLICY "Users can view own chats" ON chats
@@ -715,4 +739,55 @@ JOIN auth.users u ON u.id = p.id;
 -- Grant access to the view
 GRANT SELECT ON user_profiles TO authenticated;
 GRANT SELECT ON user_profiles TO anon;
+
+-- 5️⃣ Update review vote counts (FIXED variable scoping)
+DROP FUNCTION IF EXISTS public.update_review_votes(UUID);
+
+CREATE OR REPLACE FUNCTION public.update_review_votes(p_review_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE reviews
+  SET 
+    upvotes = (
+      SELECT COUNT(*) FROM review_votes
+      WHERE review_votes.review_id = p_review_id AND vote_type = 'up'
+    ),
+    downvotes = (
+      SELECT COUNT(*) FROM review_votes
+      WHERE review_votes.review_id = p_review_id AND vote_type = 'down'
+    )
+  WHERE id = p_review_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_review_votes(UUID) TO authenticated;
+
+-- 6️⃣ Vacancy notification automation
+CREATE OR REPLACE FUNCTION notify_vacancy_alerts()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.available_beds = 0 AND NEW.available_beds > 0 THEN
+    INSERT INTO notifications (user_id, type, title, message, payload)
+    SELECT
+      va.user_id,
+      'vacancy',
+      'Vacancy Available',
+      'A room is now available at ' || NEW.name,
+      jsonb_build_object('pg_id', NEW.id)
+    FROM vacancy_alerts va
+    WHERE va.pg_id = NEW.id AND va.is_enabled = true;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS vacancy_alert_trigger ON pg_listings;
+
+CREATE TRIGGER vacancy_alert_trigger
+  AFTER UPDATE OF available_beds ON pg_listings
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_vacancy_alerts();
 

@@ -88,3 +88,22 @@ COMMENT ON COLUMN public.qna.answer IS 'The answer text (NULL if unanswered)';
 COMMENT ON COLUMN public.qna.answered_by IS 'User who answered (typically the property owner)';
 COMMENT ON COLUMN public.qna.created_at IS 'When the question was asked';
 COMMENT ON COLUMN public.qna.answered_at IS 'When the question was answered';
+
+-- ============================================
+-- TRIGGERS
+-- ============================================
+-- Auto-set answered_at when answer is provided
+CREATE OR REPLACE FUNCTION set_answered_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.answer IS NOT NULL AND OLD.answer IS NULL THEN
+    NEW.answered_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_answered_at_trigger
+  BEFORE UPDATE ON qna
+  FOR EACH ROW
+  EXECUTE FUNCTION set_answered_at();

@@ -153,31 +153,108 @@ const PostRoom = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
-    if (!formData.name || !formData.gender || !formData.roomType) {
+    // Step 1: Basic Info Validation
+    if (!formData.name || formData.name.trim().length < 3) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields in Basic Info",
+        title: "Invalid PG Name",
+        description: "PG name must be at least 3 characters long",
         variant: "destructive",
       });
       setStep(1);
       return;
     }
 
-    if (!formData.rent || !formData.deposit || !formData.availableBeds) {
+    if (!formData.gender || !formData.roomType) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required pricing fields",
+        description: "Please select gender preference and room type",
+        variant: "destructive",
+      });
+      setStep(1);
+      return;
+    }
+
+    // Step 2: Location Validation
+    if (!formData.address || !formData.city || !formData.state || !formData.pincode) {
+      toast({
+        title: "Incomplete Address",
+        description: "Please fill in complete address details",
         variant: "destructive",
       });
       setStep(2);
       return;
     }
 
+    if (formData.pincode && !/^\d{6}$/.test(formData.pincode)) {
+      toast({
+        title: "Invalid Pincode",
+        description: "Pincode must be 6 digits",
+        variant: "destructive",
+      });
+      setStep(2);
+      return;
+    }
+
+    // Step 3: Pricing Validation
+    if (!formData.rent || !formData.deposit || !formData.availableBeds) {
+      toast({
+        title: "Missing Pricing Information",
+        description: "Please fill in rent, deposit, and available beds",
+        variant: "destructive",
+      });
+      setStep(3);
+      return;
+    }
+
+    const rent = parseInt(formData.rent);
+    const deposit = parseInt(formData.deposit);
+    const beds = parseInt(formData.availableBeds);
+
+    if (rent < 1000 || rent > 100000) {
+      toast({
+        title: "Invalid Rent",
+        description: "Rent must be between ₹1,000 and ₹1,00,000",
+        variant: "destructive",
+      });
+      setStep(3);
+      return;
+    }
+
+    if (deposit < 0 || deposit > rent * 12) {
+      toast({
+        title: "Invalid Deposit",
+        description: "Deposit seems unreasonable. Please check the amount",
+        variant: "destructive",
+      });
+      setStep(3);
+      return;
+    }
+
+    if (beds < 1 || beds > 50) {
+      toast({
+        title: "Invalid Beds Count",
+        description: "Available beds must be between 1 and 50",
+        variant: "destructive",
+      });
+      setStep(3);
+      return;
+    }
+
+    // Step 4: Photos Validation
     if (uploadedImages.length < 3) {
       toast({
         title: "Photos Required",
         description: "Please upload at least 3 photos of your property",
+        variant: "destructive",
+      });
+      setStep(4);
+      return;
+    }
+
+    if (uploadedImages.length > 10) {
+      toast({
+        title: "Too Many Photos",
+        description: "Maximum 10 photos allowed. Please remove some",
         variant: "destructive",
       });
       setStep(4);
