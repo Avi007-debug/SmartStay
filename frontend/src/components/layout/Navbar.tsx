@@ -94,11 +94,11 @@ export const Navbar = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  // Filter nav links based on user role - only owners and admins can post rooms
+  // Filter nav links based on user role - only owners can post rooms (NOT admins)
   const allNavLinks = [
     { to: "/", label: "Home", icon: Home, roles: ["user", "owner", "admin"] },
     { to: "/search", label: "Search PGs", icon: Search, roles: ["user", "owner", "admin"] },
-    { to: "/post-room", label: "Post Room", icon: Building2, roles: ["owner", "admin"] },
+    { to: "/post-room", label: "Post Room", icon: Building2, roles: ["owner"] },
   ];
 
   const navLinks = allNavLinks.filter(link => 

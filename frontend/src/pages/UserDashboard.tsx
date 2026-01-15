@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { authService, savedPGsService, storageService, notificationsService } from "@/lib/supabase";
+import { authService, savedPGsService, storageService, notificationsService, chatService } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RecommendationCard } from "@/components/ai/RecommendationCard";
-import { TravelTimeEstimator } from "@/components/ai/TravelTimeEstimator";
+import { PersonalizedRecommendations } from "@/components/ai/PersonalizedRecommendations";
 import { VacancyAlertSettings } from "@/components/ai/VacancyAlertSettings";
 import { AnonymousChatInterface } from "@/components/chat/AnonymousChatInterface";
 import { OnboardingTour, useOnboardingTour } from "@/components/OnboardingTour";
@@ -27,7 +27,32 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [budget, setBudget] = useState([5000, 15000]);
+  const [chatCount, setChatCount] = useState(0);
+  const [activeTab, setActiveTab] = useState("recommendations");
   const { shouldShowTour } = useOnboardingTour("user-dashboard");
+
+  useEffect(() => {
+    loadUserData();
+    
+    // Handle hash-based tab navigation
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['recommendations', 'saved', 'chats', 'alerts', 'profile'].includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && ['recommendations', 'saved', 'chats', 'alerts', 'profile'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     loadUserData();
@@ -50,9 +75,9 @@ const UserDashboard = () => {
       const notifs = await notificationsService.getAll();
       setNotifications(notifs || []);
       
-      // TODO: Load recommendations from AI service
-      // For now using empty array - will be populated when recommendation engine is ready
-      setRecommendations([]);
+      // Load chats count
+      const chats = await chatService.getAll();
+      setChatCount(chats?.length || 0);
       
     } catch (error) {
       console.error('Error loading user:', error);
@@ -65,7 +90,7 @@ const UserDashboard = () => {
     {
       target: "[data-tour='stats']",
       title: "Your Activity Stats",
-      description: "Quick overview of your saved PGs, recently viewed listings, and active notifications.",
+      description: "Quick overview of your saved PGs and active notifications.",
       placement: "bottom" as const,
     },
     {
@@ -95,9 +120,7 @@ const UserDashboard = () => {
   ];
   
   const [savedPGs, setSavedPGs] = useState<any[]>([]);
-  const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
 
   if (loading) {
     return (
@@ -126,7 +149,7 @@ const UserDashboard = () => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-tour="stats">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8" data-tour="stats">
               <Card className="border-2">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -135,18 +158,6 @@ const UserDashboard = () => {
                       <p className="text-2xl font-bold">{savedPGs.length}</p>
                     </div>
                     <Heart className="h-8 w-8 text-primary/20" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Recently Viewed</p>
-                      <p className="text-2xl font-bold">{recentlyViewed.length}</p>
-                    </div>
-                    <Clock className="h-8 w-8 text-primary/20" />
                   </div>
                 </CardContent>
               </Card>
@@ -168,7 +179,7 @@ const UserDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-muted-foreground">Active Chats</p>
-                      <p className="text-2xl font-bold">3</p>
+                      <p className="text-2xl font-bold">{chatCount}</p>
                     </div>
                     <MessageCircle className="h-8 w-8 text-primary/20" />
                   </div>
@@ -176,18 +187,16 @@ const UserDashboard = () => {
               </Card>
             </div>
 
-            <Tabs defaultValue="recommendations" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="mb-6 flex-wrap h-auto gap-1">
                 <TabsTrigger value="recommendations" className="gap-2" data-tour="recommendations">
                   <Sparkles className="h-4 w-4" />
-                  For You
+                  AI Recommendations
                 </TabsTrigger>
                 <TabsTrigger value="saved" data-tour="saved">Saved PGs</TabsTrigger>
-                <TabsTrigger value="recent">Recently Viewed</TabsTrigger>
                 <TabsTrigger value="chats" data-tour="chats">Anonymous Chats</TabsTrigger>
                 <TabsTrigger value="alerts">Vacancy Alerts</TabsTrigger>
-                <TabsTrigger value="preferences" data-tour="preferences">Preferences</TabsTrigger>
-                <TabsTrigger value="profile">Profile</TabsTrigger>
+                <TabsTrigger value="profile">My Profile</TabsTrigger>
               </TabsList>
 
               {/* AI Recommendations Tab */}
@@ -203,11 +212,8 @@ const UserDashboard = () => {
                   </CardContent>
                 </Card>
                 
-                <div className="space-y-4">
-                  {recommendations.map((pg) => (
-                    <RecommendationCard key={pg.id} {...pg} />
-                  ))}
-                </div>
+                {/* AI-Powered Personalized Recommendations */}
+                <PersonalizedRecommendations />
               </TabsContent>
 
               {/* Saved PGs Tab */}
@@ -229,9 +235,9 @@ const UserDashboard = () => {
                       <Card key={saved.id} className="hover-lift border-2 hover:border-primary">
                         <div className="flex flex-col sm:flex-row">
                           <div className="sm:w-48 h-32 bg-muted relative shrink-0">
-                            {pg.images && pg.images.length > 0 ? (
+                            {pg.images && pg.images.length > 0 && pg.images[0] ? (
                               <img
-                                src={storageService.getPublicUrl("pg-images", pg.images[0])}
+                                src={pg.images[0]}
                                 alt={pg.name}
                                 className="w-full h-full object-cover"
                               />
@@ -267,145 +273,14 @@ const UserDashboard = () => {
                 )}
               </TabsContent>
 
-              {/* Recently Viewed Tab */}
-              <TabsContent value="recent" className="space-y-4">
-                {recentlyViewed.map((pg) => (
-                  <Card key={pg.id} className="hover-lift border-2 hover:border-primary">
-                    <div className="flex flex-col sm:flex-row">
-                      <div className="sm:w-48 h-32 bg-muted relative shrink-0">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                          <Building2 className="h-12 w-12 text-primary/40" />
-                        </div>
-                      </div>
-                      <CardContent className="flex-1 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                          <h3 className="font-semibold text-lg mb-1">{pg.name}</h3>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
-                            <MapPin className="h-4 w-4" />
-                            {pg.distance}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 fill-accent text-accent" />
-                              <span className="text-sm font-medium">{pg.rating}</span>
-                            </div>
-                            <span className="text-lg font-bold text-primary">₹{pg.price}/mo</span>
-                          </div>
-                        </div>
-                        <Button asChild>
-                          <Link to={`/pg/${pg.id}`}>View Details</Link>
-                        </Button>
-                      </CardContent>
-                    </div>
-                  </Card>
-                ))}
-              </TabsContent>
-
               {/* Anonymous Chats Tab */}
               <TabsContent value="chats">
                 <AnonymousChatInterface />
               </TabsContent>
 
               {/* Vacancy Alerts Tab */}
-              <TabsContent value="alerts" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TabsContent value="alerts">
                 <VacancyAlertSettings />
-                <TravelTimeEstimator />
-              </TabsContent>
-
-              {/* Preferences Tab */}
-              <TabsContent value="preferences" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      Search Preferences
-                    </CardTitle>
-                    <CardDescription>Set your preferences to get better recommendations</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <Label className="mb-3 block">Monthly Budget</Label>
-                          <Slider
-                            value={budget}
-                            onValueChange={setBudget}
-                            min={2000}
-                            max={30000}
-                            step={500}
-                            className="mb-2"
-                          />
-                          <div className="flex justify-between text-sm text-muted-foreground">
-                            <span>₹{budget[0].toLocaleString()}</span>
-                            <span>₹{budget[1].toLocaleString()}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="college">Your College/University</Label>
-                          <Input id="college" placeholder="e.g., Delhi University" className="mt-2" />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="gender">Room Preference</Label>
-                          <Select>
-                            <SelectTrigger className="mt-2">
-                              <SelectValue placeholder="Select preference" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="boys">Boys Only PG</SelectItem>
-                              <SelectItem value="girls">Girls Only PG</SelectItem>
-                              <SelectItem value="any">Any</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <Label className="mb-3 block">Strictness Tolerance</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="strict">Strict (early curfew OK)</SelectItem>
-                              <SelectItem value="moderate">Moderate</SelectItem>
-                              <SelectItem value="relaxed">Relaxed (late or no curfew)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="mb-3 block">Max Travel Time</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="10">Within 10 minutes</SelectItem>
-                              <SelectItem value="20">Within 20 minutes</SelectItem>
-                              <SelectItem value="30">Within 30 minutes</SelectItem>
-                              <SelectItem value="any">Any distance</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="food">Food Included Required</Label>
-                          <Switch id="food" />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="verified">Verified PGs Only</Label>
-                          <Switch id="verified" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button className="w-full" variant="accent">Save Preferences</Button>
-                  </CardContent>
-                </Card>
               </TabsContent>
 
               {/* Profile Tab */}
@@ -413,6 +288,7 @@ const UserDashboard = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Profile Information</CardTitle>
+                    <CardDescription>View and manage your profile</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center gap-4">
@@ -422,30 +298,36 @@ const UserDashboard = () => {
                       <div>
                         <h3 className="font-semibold text-lg">{currentUser?.profile?.full_name || 'User'}</h3>
                         <p className="text-sm text-muted-foreground">{currentUser?.email}</p>
-                        <Badge variant="secondary" className="mt-2">{currentUser?.profile?.role || 'Student'}</Badge>
+                        <Badge variant="secondary" className="mt-2 capitalize">{currentUser?.profile?.role || 'user'}</Badge>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue={currentUser?.profile?.full_name || ''} className="mt-2" />
+                        <Label>Full Name</Label>
+                        <p className="mt-2 text-sm font-medium">{currentUser?.profile?.full_name || 'Not set'}</p>
                       </div>
                       <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue={currentUser?.email || ''} className="mt-2" />
+                        <Label>Email</Label>
+                        <p className="mt-2 text-sm font-medium">{currentUser?.email || 'Not set'}</p>
                       </div>
                       <div>
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" defaultValue="+91 98765 43210" className="mt-2" />
+                        <Label>Phone Number</Label>
+                        <p className="mt-2 text-sm font-medium">
+                          {currentUser?.profile?.phone && currentUser.profile.phone.trim() !== '' 
+                            ? currentUser.profile.phone 
+                            : 'Not set'}
+                        </p>
                       </div>
                       <div>
-                        <Label htmlFor="college-profile">College</Label>
-                        <Input id="college-profile" defaultValue="Delhi University" className="mt-2" />
+                        <Label>Role</Label>
+                        <p className="mt-2 text-sm font-medium capitalize">{currentUser?.profile?.role || 'user'}</p>
                       </div>
                     </div>
 
-                    <Button className="w-full">Update Profile</Button>
+                    <Button className="w-full" variant="outline" asChild>
+                      <Link to="/preferences">Edit Preferences</Link>
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>

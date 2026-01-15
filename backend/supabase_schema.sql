@@ -7,11 +7,17 @@
 -- - Reviews with upvote/downvote
 -- - Anonymous chat system
 -- - Vacancy alerts
+-- - Price drop alerts (see CREATE_PRICE_DROP_ALERTS.sql)
 -- - Saved PGs
 -- - Verification system
--- - Q&A system
+-- - Q&A system (see CREATE_QNA_TABLE.sql)
 -- - Reports/Moderation
 -- - User preferences
+-- ============================================
+-- 
+-- ADDITIONAL TABLES (Run separately):
+-- 1. CREATE_QNA_TABLE.sql - Q&A feature between users and owners
+-- 2. CREATE_PRICE_DROP_ALERTS.sql - Price drop alert notifications
 -- ============================================
 
 -- Enable UUID extension

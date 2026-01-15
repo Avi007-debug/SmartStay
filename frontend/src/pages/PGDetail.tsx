@@ -13,6 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TravelTimeEstimator } from "@/components/ai/TravelTimeEstimator";
+import { HiddenChargeDetector } from "@/components/ai/HiddenChargeDetector";
+import { SentimentSummary } from "@/components/ai/SentimentSummary";
+import { PriceDropAlertSettings } from "@/components/ai/PriceDropAlertSettings";
 import { toast } from "@/hooks/use-toast";
 import {
   MapPin,
@@ -39,11 +42,12 @@ import {
   Bell,
   ExternalLink,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { pgService, reviewsService, storageService, savedPGsService, authService, qnaService } from "@/lib/supabase";
-import { Loader2, Edit } from "lucide-react";
+import { pgService, reviewsService, storageService, savedPGsService, authService, qnaService, chatService } from "@/lib/supabase";
+import { Loader2, Edit, Trash2, Pencil } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 
 const PGDetail = () => {
@@ -65,6 +69,8 @@ const PGDetail = () => {
   const [reviewText, setReviewText] = useState("");
   const [reviewAnonymous, setReviewAnonymous] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [editingReview, setEditingReview] = useState<any>(null);
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
   
   // Q&A form state
   const [qnaDialogOpen, setQnaDialogOpen] = useState(false);
@@ -74,6 +80,43 @@ const PGDetail = () => {
   const [replyText, setReplyText] = useState("");
   const [replyingToQuestion, setReplyingToQuestion] = useState<any>(null);
   const [submittingReply, setSubmittingReply] = useState(false);
+
+  const handleChatWithOwner = async (prefilledMessage?: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please login to chat with the owner",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+
+    try {
+      // Create or get existing chat
+      const chat = await chatService.createOrGet(pgData.id, pgData.owner_id, true);
+      
+      // If there's a prefilled message, send it
+      if (prefilledMessage && chat.id) {
+        await chatService.sendMessage(chat.id, prefilledMessage);
+      }
+      
+      // Navigate to dashboard chats tab
+      navigate('/user-dashboard#chats');
+      
+      toast({
+        title: "Chat Opened",
+        description: prefilledMessage ? "Message sent to owner" : "Start chatting with the owner",
+      });
+    } catch (error) {
+      console.error('Error opening chat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open chat. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     loadPGData();
@@ -106,35 +149,96 @@ const PGDetail = () => {
 
     setSubmittingReview(true);
     try {
-      await reviewsService.create(id!, {
-        rating: reviewRating,
-        review_text: reviewText,
-        is_anonymous: reviewAnonymous,
-      });
+      if (editingReview) {
+        // Update existing review
+        await reviewsService.update(editingReview.id, {
+          rating: reviewRating,
+          review_text: reviewText,
+        });
 
-      toast({
-        title: "Review Submitted",
-        description: "Thank you for your feedback!",
-      });
+        toast({
+          title: "Review Updated",
+          description: "Your review has been updated successfully!",
+        });
+      } else {
+        // Create new review
+        await reviewsService.create(id!, {
+          rating: reviewRating,
+          review_text: reviewText,
+          is_anonymous: reviewAnonymous,
+        });
+
+        toast({
+          title: "Review Submitted",
+          description: "Thank you for your feedback!",
+        });
+      }
 
       // Reset form and close dialog
       setReviewText("");
       setReviewRating(5);
       setReviewAnonymous(false);
+      setEditingReview(null);
       setReviewDialogOpen(false);
 
       // Reload reviews
       const pgReviews = await reviewsService.getByPGId(id!);
       setReviews(pgReviews || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting review:", error);
+      
+      // Check for duplicate review error
+      if (error?.code === '23505' || error?.message?.includes('duplicate key')) {
+        toast({
+          title: "Already Reviewed",
+          description: "You have already submitted a review for this PG. You can only review once.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to submit review. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleEditReview = (review: any) => {
+    setEditingReview(review);
+    setReviewRating(review.rating);
+    setReviewText(review.review_text);
+    setReviewDialogOpen(true);
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm("Are you sure you want to delete this review?")) {
+      return;
+    }
+
+    setDeletingReviewId(reviewId);
+    try {
+      await reviewsService.delete(reviewId);
+
+      toast({
+        title: "Review Deleted",
+        description: "Your review has been removed.",
+      });
+
+      // Reload reviews
+      const pgReviews = await reviewsService.getByPGId(id!);
+      setReviews(pgReviews || []);
+    } catch (error) {
+      console.error("Error deleting review:", error);
       toast({
         title: "Error",
-        description: "Failed to submit review. Please try again.",
+        description: "Failed to delete review. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setSubmittingReview(false);
+      setDeletingReviewId(null);
     }
   };
 
@@ -294,6 +398,9 @@ const PGDetail = () => {
       setLoading(false);
     }
   };
+
+  // Check if current user has already reviewed this PG
+  const userHasReviewed = reviews.some(review => review.user_id === currentUser?.id);
 
   const totalImages = pgData?.images?.length || 1;
 
@@ -583,6 +690,7 @@ const PGDetail = () => {
                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
                 <TabsTrigger value="availability">Availability</TabsTrigger>
                 <TabsTrigger value="travel">Travel Time</TabsTrigger>
+                <TabsTrigger value="charges">Hidden Charges</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
                 <TabsTrigger value="qna">Q&A</TabsTrigger>
               </TabsList>
@@ -590,7 +698,15 @@ const PGDetail = () => {
               <TabsContent value="overview" className="space-y-6">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold text-lg mb-4">About This PG</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-lg">About This PG</h3>
+                      {pgData.description && (
+                        <Badge variant="secondary" className="gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          AI Enhanced
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-muted-foreground leading-relaxed">
                       {pgData.description || 'No description available'}
                     </p>
@@ -635,19 +751,6 @@ const PGDetail = () => {
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-accent/5 border-accent">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-accent" />
-                      AI Sentiment Summary
-                    </h3>
-                    <p className="text-muted-foreground">
-                      Based on 42 reviews, students highly appreciate the <strong>food quality</strong> and <strong>cleanliness</strong>. 
-                      Some concerns mentioned about <strong>Wi-Fi speed</strong> during evening hours. Overall sentiment: <strong className="text-success">Very Positive</strong>
-                    </p>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -722,9 +825,44 @@ const PGDetail = () => {
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="font-semibold text-lg mb-4">Travel Time Estimator</h3>
-                    <TravelTimeEstimator pgLocation={`${pgData.address}, ${pgData.city}`} />
+                    {pgData && (
+                      <TravelTimeEstimator 
+                        pgLocation={
+                          typeof pgData.address === 'string' 
+                            ? pgData.address 
+                            : (pgData.address?.street || pgData.address?.full || `${pgData.city}, ${pgData.state}`)
+                        } 
+                      />
+                    )}
+                    {!pgData && <p className="text-muted-foreground">Loading...</p>}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="charges" className="space-y-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-lg mb-4">Hidden Charges Analysis</h3>
+                    <HiddenChargeDetector 
+                      pgData={{
+                        description: pgData.description || '',
+                        rent: pgData.rent || 0,
+                        deposit: pgData.deposit || 0,
+                        amenities: pgData.amenities || [],
+                        rules: pgData.rules || ''
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Price Drop Alert */}
+                {pgData && (
+                  <PriceDropAlertSettings 
+                    pgId={pgData.id}
+                    currentRent={pgData.rent}
+                    pgName={pgData.name}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="amenities" className="space-y-4">
@@ -752,9 +890,12 @@ const PGDetail = () => {
               <TabsContent value="reviews" className="space-y-4">
                 <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full mb-4">
+                    <Button 
+                      className="w-full mb-4" 
+                      disabled={!currentUser || userHasReviewed}
+                    >
                       <Star className="h-4 w-4 mr-2" />
-                      Write a Review
+                      {userHasReviewed ? "You've Already Reviewed" : "Write a Review"}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -812,15 +953,19 @@ const PGDetail = () => {
                         {submittingReview ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Submitting...
+                            {editingReview ? "Updating..." : "Submitting..."}
                           </>
                         ) : (
-                          "Submit Review"
+                          editingReview ? "Update Review" : "Submit Review"
                         )}
                       </Button>
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {reviews.length > 0 && (
+                  <SentimentSummary reviews={reviews} pgName={pgData?.name} />
+                )}
 
                 {reviews.length > 0 ? (
                   reviews.map((review) => (
@@ -839,16 +984,46 @@ const PGDetail = () => {
                               </p>
                               <p className="text-sm text-muted-foreground">
                                 {new Date(review.created_at).toLocaleDateString()}
+                                {review.updated_at && review.updated_at !== review.created_at && (
+                                  <span className="ml-2">(edited)</span>
+                                )}
                               </p>
                             </div>
                           </div>
-                          <div className="flex gap-1">
-                            {[...Array(review.rating)].map((_, i) => (
-                              <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              {[...Array(review.rating)].map((_, i) => (
+                                <Star key={i} className="h-4 w-4 fill-accent text-accent" />
+                              ))}
+                            </div>
+                            {currentUser?.id === review.user_id && (
+                              <div className="flex gap-1 ml-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleEditReview(review)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive"
+                                  disabled={deletingReviewId === review.id}
+                                  onClick={() => handleDeleteReview(review.id)}
+                                >
+                                  {deletingReviewId === review.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <p className="text-muted-foreground mb-4">{review.comment}</p>
+                        <p className="text-muted-foreground mb-4">{review.review_text || review.comment}</p>
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             <Button
@@ -1099,11 +1274,21 @@ const PGDetail = () => {
                     <Phone className="h-4 w-4 mr-2" />
                     Contact Owner
                   </Button>
-                  <Button className="w-full" size="lg" variant="outline">
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    variant="outline"
+                    onClick={() => handleChatWithOwner()}
+                  >
                     <MessageCircle className="h-4 w-4 mr-2" />
                     Chat Anonymously
                   </Button>
-                  <Button className="w-full" size="lg" variant="outline">
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    variant="outline"
+                    onClick={() => handleChatWithOwner(`Hi! I'm interested in visiting ${pgData.name}. When would be a good time to schedule a visit?`)}
+                  >
                     Book a Visit
                   </Button>
                 </div>

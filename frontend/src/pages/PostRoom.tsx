@@ -32,6 +32,7 @@ const PostRoom = () => {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<{ file: File, preview: string }[]>([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -746,6 +747,53 @@ const PostRoom = () => {
                         <span>Flexible</span>
                         <span>Very Strict</span>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-2 border-accent">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-accent" />
+                      AI Description Generator
+                    </CardTitle>
+                    <CardDescription>Generate a professional description using AI</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="description">Property Description</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={generateDescription}
+                          disabled={generatingDescription || !formData.amenities.length || !formData.rent}
+                          className="gap-2"
+                        >
+                          {generatingDescription ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4" />
+                              Generate with AI
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <Textarea
+                        id="description"
+                        placeholder="Describe your PG... or click 'Generate with AI' to create one automatically"
+                        rows={6}
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Tip: Fill in amenities and rent first, then use AI to generate a professional description
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

@@ -2,10 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { authService, savedPGsService, chatService } from "@/lib/supabase";
 import {
   Home,
   Heart,
-  Clock,
   Bell,
   MessageCircle,
   User,
@@ -20,8 +21,6 @@ import {
   Users,
   Flag,
   CheckCircle,
-  MapPin,
-  Sparkles,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -30,29 +29,52 @@ interface SidebarProps {
 
 export const DashboardSidebar = ({ role }: SidebarProps) => {
   const location = useLocation();
+  const [userName, setUserName] = useState("");
+  const [savedCount, setSavedCount] = useState(0);
+  const [chatCount, setChatCount] = useState(0);
+
+  useEffect(() => {
+    if (role === "user") {
+      loadUserData();
+    }
+  }, [role]);
+
+  const loadUserData = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user?.profile) {
+        setUserName(user.profile.full_name || "User");
+        
+        // Load saved PGs count
+        const saved = await savedPGsService.getAll();
+        setSavedCount(saved?.length || 0);
+        
+        // Load active chats count
+        const chats = await chatService.getAll();
+        setChatCount(chats?.length || 0);
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    }
+  };
 
   const userLinks = [
     { to: "/user-dashboard", label: "Dashboard", icon: Home },
-    { to: "/user-dashboard/saved", label: "Saved PGs", icon: Heart, badge: "2" },
-    { to: "/user-dashboard/recent", label: "Recently Viewed", icon: Clock },
-    { to: "/user-dashboard/recommendations", label: "For You", icon: Sparkles },
-    { to: "/user-dashboard/chats", label: "Anonymous Chats", icon: MessageCircle, badge: "3" },
-    { to: "/notifications", label: "Notifications", icon: Bell, badge: "5" },
-    { to: "/user-dashboard/preferences", label: "Preferences", icon: Settings },
-    { to: "/user-dashboard/travel-time", label: "Travel Estimator", icon: MapPin },
-    { to: "/user-dashboard/profile", label: "My Profile", icon: User },
+    { to: "/user-dashboard#saved", label: "Saved PGs", icon: Heart, badge: savedCount > 0 ? savedCount.toString() : undefined },
+    { to: "/user-dashboard#chats", label: "Anonymous Chats", icon: MessageCircle, badge: chatCount > 0 ? chatCount.toString() : undefined },
+    { to: "/notifications", label: "Notifications", icon: Bell },
+    { to: "/preferences", label: "Preferences", icon: Settings },
+    { to: "/user-dashboard#profile", label: "My Profile", icon: User },
   ];
 
   const ownerLinks = [
     { to: "/owner-dashboard", label: "Dashboard", icon: Home },
-    { to: "/post-room", label: "Add New Listing", icon: Plus },
-    { to: "/owner-dashboard/listings", label: "My Listings", icon: Building2 },
-    { to: "/owner-dashboard/analytics", label: "Analytics", icon: TrendingUp },
-    { to: "/owner-dashboard/inquiries", label: "Inquiries", icon: MessageCircle, badge: "8" },
-    { to: "/owner-dashboard/qna", label: "Q&A Responses", icon: HelpCircle },
-    { to: "/owner-dashboard/verification", label: "Verification", icon: Shield },
+    { to: "/post-room", label: "New Listing", icon: Plus },
+    { to: "/owner-dashboard#listings", label: "My Listings", icon: Building2 },
+    { to: "/owner-dashboard#inquiries", label: "Inquiries", icon: MessageCircle },
+    { to: "/owner-dashboard#qna", label: "Q&A Responses", icon: HelpCircle },
     { to: "/notifications", label: "Notifications", icon: Bell },
-    { to: "/owner-dashboard/profile", label: "Profile", icon: User },
+    { to: "/owner-dashboard#profile", label: "My Profile", icon: User },
   ];
 
   const adminLinks = [
@@ -76,7 +98,7 @@ export const DashboardSidebar = ({ role }: SidebarProps) => {
           </div>
           <div>
             <p className="font-semibold text-sm">
-              {role === "user" ? "John Doe" : role === "owner" ? "Rajesh Kumar" : "Admin User"}
+              {role === "user" ? userName || "User" : role === "owner" ? "Rajesh Kumar" : "Admin User"}
             </p>
             <Badge variant="secondary" className="text-xs capitalize">{role}</Badge>
           </div>

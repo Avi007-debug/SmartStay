@@ -289,21 +289,30 @@ const Search = () => {
                 pgListings.map((pg) => (
                 <Card key={pg.id} className={`overflow-hidden hover-lift border-2 transition-all ${pg.is_available ? 'hover:border-primary' : 'opacity-75'}`}>
                   <div className="flex flex-col md:flex-row">
-                    <div className="md:w-72 h-48 md:h-auto bg-muted relative shrink-0">
-                      {pg.images && pg.images.length > 0 ? (
+                    {/* Fixed-size image container: 240px × 180px */}
+                    <div className="w-full md:w-60 h-45 md:h-45 bg-gray-100 relative shrink-0 overflow-hidden rounded-l-lg">
+                      {/* Image - will be hidden if it fails to load */}
+                      {pg.images && pg.images.length > 0 && (
                         <img
-                          src={storageService.getPublicUrl("pg-images", pg.images[0])}
+                          src={pg.images[0].startsWith('http') 
+                            ? pg.images[0] 
+                            : storageService.getPublicUrl("pg-images", pg.images[0])}
                           alt={pg.name}
-                          className="w-full h-full object-cover"
+                          className="absolute inset-0 w-full h-full object-cover z-10"
+                          onError={(e) => {
+                            // Hide broken image to reveal placeholder
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                          <Building2 className="h-16 w-16 text-primary/40" />
-                        </div>
                       )}
-                      {pg.is_verified && <Badge className="absolute top-4 left-4 bg-success"><Shield className="h-3 w-3 mr-1" />Verified</Badge>}
-                      <Button variant="ghost" size="icon" className="absolute top-4 right-4 bg-white/80 hover:bg-white"><Heart className="h-4 w-4" /></Button>
-                      {!pg.is_available && <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary">Currently Full</Badge></div>}
+                      {/* Fallback placeholder - always rendered behind the image */}
+                      <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center gap-2 z-0">
+                        <Building2 className="h-12 w-12 text-gray-300" />
+                        <span className="text-xs text-gray-400">No Image</span>
+                      </div>
+                      {pg.is_verified && <Badge className="absolute top-3 left-3 bg-success shadow-sm z-20"><Shield className="h-3 w-3 mr-1" />Verified</Badge>}
+                      <Button variant="ghost" size="icon" className="absolute top-3 right-3 bg-white/90 hover:bg-white shadow-sm z-20"><Heart className="h-4 w-4" /></Button>
+                      {!pg.is_available && <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-30"><Badge variant="secondary">Currently Full</Badge></div>}
                     </div>
                     
                     <div className="flex-1 p-5">

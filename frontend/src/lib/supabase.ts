@@ -318,6 +318,44 @@ export const reviewsService = {
     // Update vote counts
     await supabase.rpc('update_review_votes', { review_id: reviewId })
   },
+
+  // Update review
+  async update(reviewId: string, review: {
+    rating?: number
+    title?: string
+    review_text?: string
+    cleanliness_rating?: number
+    food_rating?: number
+  }) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .update({
+        ...review,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reviewId)
+      .eq('user_id', user?.id) // Only allow updating own reviews
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Delete review
+  async delete(reviewId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId)
+      .eq('user_id', user?.id) // Only allow deleting own reviews
+
+    if (error) throw error
+  },
 }
 
 // ============================================
@@ -393,6 +431,33 @@ export const qnaService = {
       .eq('id', questionId)
 
     if (error) throw error
+  },
+
+  // Get all Q&As for owner's listings
+  async getOwnerQnAs(ownerId: string) {
+    const { data, error } = await supabase
+      .from('qna')
+      .select(`
+        *,
+        pg_listing:pg_listings!qna_pg_id_fkey (
+          id,
+          name,
+          owner_id
+        ),
+        user:profiles!qna_user_id_fkey (
+          full_name,
+          profile_picture
+        ),
+        answerer:profiles!qna_answered_by_fkey (
+          full_name,
+          profile_picture
+        )
+      `)
+      .eq('pg_listing.owner_id', ownerId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
   },
 }
 
@@ -594,6 +659,87 @@ export const vacancyAlertsService = {
       .single()
 
     return !!data
+  },
+}
+
+// ============================================
+// PRICE DROP ALERTS SERVICE
+// ============================================
+export const priceDropAlertsService = {
+  // Create or update price drop alert
+  async create(pgId: string, targetPrice: number) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('price_drop_alerts')
+      .upsert({
+        user_id: user?.id,
+        pg_id: pgId,
+        target_price: targetPrice,
+        is_enabled: true,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Get all user's price drop alerts
+  async getAll() {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('price_drop_alerts')
+      .select(`
+        *,
+        pg_listings:pg_id (
+          id,
+          name,
+          rent,
+          address,
+          average_rating
+        )
+      `)
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  // Check if alert exists for a PG
+  async getByPGId(pgId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data } = await supabase
+      .from('price_drop_alerts')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('pg_id', pgId)
+      .single()
+
+    return data
+  },
+
+  // Toggle alert enabled/disabled
+  async toggle(alertId: string, enabled: boolean) {
+    const { error } = await supabase
+      .from('price_drop_alerts')
+      .update({ is_enabled: enabled })
+      .eq('id', alertId)
+
+    if (error) throw error
+  },
+
+  // Delete price drop alert
+  async delete(alertId: string) {
+    const { error } = await supabase
+      .from('price_drop_alerts')
+      .delete()
+      .eq('id', alertId)
+
+    if (error) throw error
   },
 }
 
@@ -852,14 +998,31 @@ export const verificationService = {
 // ADMIN SERVICE
 // ============================================
 export const adminService = {
-  // Get all users
+  // Get all users with emails
   async getAllUsers() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select(`
+        *,
+        user:id (
+          email:auth.users(email)
+        )
+      `)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      // Fallback: fetch profiles and emails separately
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (profileError) throw profileError
+
+      // Manually fetch emails from auth metadata if needed
+      return profiles
+    }
+    
     return data
   },
 
@@ -943,6 +1106,7 @@ export default {
   chat: chatService,
   notifications: notificationsService,
   vacancyAlerts: vacancyAlertsService,
+  priceDropAlerts: priceDropAlertsService,
   preferences: preferencesService,
   storage: storageService,
   verification: verificationService,

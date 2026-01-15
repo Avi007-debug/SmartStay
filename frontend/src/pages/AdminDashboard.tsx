@@ -56,10 +56,10 @@ const AdminDashboard = () => {
     try {
       const user = await authService.getCurrentUser();
       
-      if (!user || user.role !== 'admin') {
+      if (!user || user.profile?.role !== 'admin') {
         toast({
           title: "Access Denied",
-          description: "You do not have admin privileges",
+          description: "You do not have admin privileges. Please contact support.",
           variant: "destructive",
         });
         navigate('/');
@@ -547,15 +547,6 @@ const AdminDashboard = () => {
                     </Card>
                   ))
                 )}
-              </CardContent>
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
 
                 {/* Empty State */}
                 {false && (

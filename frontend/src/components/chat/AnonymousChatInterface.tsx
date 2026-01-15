@@ -1,49 +1,153 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, Send, Shield, Clock, Building2 } from "lucide-react";
+import { MessageCircle, Send, Shield, Building2, Loader2 } from "lucide-react";
+import { chatService, authService } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 
 interface Chat {
-  id: number;
-  pgName: string;
-  ownerName: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
+  id: string;
+  pg_id: string;
+  owner_id: string;
+  is_anonymous: boolean;
+  last_message?: string;
+  last_message_at?: string;
+  pg_listings?: {
+    name: string;
+  };
+  profiles?: {
+    full_name: string;
+  };
 }
 
 interface Message {
-  id: number;
-  text: string;
-  sender: "user" | "owner";
-  time: string;
+  id: string;
+  message_text: string;
+  sender_id: string;
+  created_at: string;
+  sender?: {
+    full_name: string;
+  };
 }
 
 export const AnonymousChatInterface = () => {
-  const [selectedChat, setSelectedChat] = useState<number | null>(null);
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  
-  const chats: Chat[] = [
-    { id: 1, pgName: "Sunshine PG", ownerName: "Rajesh K.", lastMessage: "Yes, we have 2 beds available", time: "2h ago", unread: 2 },
-    { id: 2, pgName: "Green Valley Hostel", ownerName: "Priya S.", lastMessage: "The rent includes food", time: "1d ago", unread: 0 },
-    { id: 3, pgName: "Campus View PG", ownerName: "Amit R.", lastMessage: "You can visit anytime", time: "3d ago", unread: 0 },
-  ];
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const messages: Message[] = [
-    { id: 1, text: "Hi, I'm interested in your PG. Is there any vacancy?", sender: "user", time: "10:30 AM" },
-    { id: 2, text: "Yes, we have 2 beds available right now. When would you like to visit?", sender: "owner", time: "10:35 AM" },
-    { id: 3, text: "Can you tell me about the food and amenities?", sender: "user", time: "10:40 AM" },
-    { id: 4, text: "We provide 3 meals a day - breakfast, lunch, and dinner. The PG has WiFi, hot water 24/7, and laundry service.", sender: "owner", time: "10:45 AM" },
-  ];
+  useEffect(() => {
+    loadUserChats();
+  }, []);
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setMessage("");
+  useEffect(() => {
+    if (selectedChat) {
+      loadMessages(selectedChat);
+      
+      // Subscribe to new messages
+      const subscription = chatService.subscribeToMessages(selectedChat, (newMessage: any) => {
+        setMessages(prev => [...prev, newMessage]);
+        scrollToBottom();
+      });
+
+      return () => {
+        subscription?.unsubscribe();
+      };
+    }
+  }, [selectedChat]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const loadUserChats = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      setCurrentUser(user);
+      
+      const userChats = await chatService.getAll();
+      setChats(userChats);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load chats",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async (chatId: string) => {
+    try {
+      const chatMessages = await chatService.getMessages(chatId);
+      setMessages(chatMessages);
+      setTimeout(scrollToBottom, 100);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load messages",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSend = async () => {
+    if (!message.trim() || !selectedChat || sending) return;
+    
+    setSending(true);
+    try {
+      await chatService.sendMessage(selectedChat, message);
+      setMessage("");
+      scrollToBottom();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[600px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[600px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (chats.length === 0) {
+    return (
+      <Card className="h-[600px] flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-20" />
+          <p className="text-lg font-medium mb-2">No Chats Yet</p>
+          <p className="text-sm">Start a conversation from a PG listing page</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[600px]">
@@ -73,14 +177,19 @@ export const AnonymousChatInterface = () => {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-sm truncate">{chat.pgName}</p>
-                      <span className="text-xs text-muted-foreground">{chat.time}</span>
+                      <p className="font-medium text-sm truncate">
+                        {chat.pg_listings?.name || 'PG Listing'}
+                      </p>
+                      {chat.last_message_at && (
+                        <span className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(chat.last_message_at), { addSuffix: true })}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {chat.last_message || 'No messages yet'}
+                    </p>
                   </div>
-                  {chat.unread > 0 && (
-                    <Badge className="shrink-0">{chat.unread}</Badge>
-                  )}
                 </div>
               </div>
             ))}
@@ -101,8 +210,12 @@ export const AnonymousChatInterface = () => {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold">{chats.find(c => c.id === selectedChat)?.pgName}</p>
-                    <p className="text-xs text-muted-foreground">Owner: {chats.find(c => c.id === selectedChat)?.ownerName}</p>
+                    <p className="font-semibold">
+                      {chats.find(c => c.id === selectedChat)?.pg_listings?.name || 'PG Listing'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Owner: {chats.find(c => c.id === selectedChat)?.profiles?.full_name || 'Property Owner'}
+                    </p>
                   </div>
                 </div>
                 <Badge variant="secondary" className="bg-primary/10">
@@ -114,25 +227,31 @@ export const AnonymousChatInterface = () => {
             <CardContent className="flex flex-col h-[460px] p-0">
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-                    >
+                  {messages.map((msg) => {
+                    const isCurrentUser = msg.sender_id === currentUser?.id;
+                    return (
                       <div
-                        className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                          msg.sender === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary"
-                        }`}
+                        key={msg.id}
+                        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
                       >
-                        <p className="text-sm">{msg.text}</p>
-                        <p className={`text-xs mt-1 ${msg.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                          {msg.time}
-                        </p>
+                        <div
+                          className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                            isCurrentUser
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-secondary"
+                          }`}
+                        >
+                          <p className="text-sm">{msg.message_text}</p>
+                          <p className={`text-xs mt-1 ${
+                            isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground"
+                          }`}>
+                            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
               <div className="p-4 border-t">
@@ -140,12 +259,13 @@ export const AnonymousChatInterface = () => {
                   <Input
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSend()}
+                    onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                     placeholder="Type your message..."
                     className="flex-1"
+                    disabled={sending}
                   />
-                  <Button onClick={handleSend}>
-                    <Send className="h-4 w-4" />
+                  <Button onClick={handleSend} disabled={sending || !message.trim()}>
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>

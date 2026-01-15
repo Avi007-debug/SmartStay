@@ -36,37 +36,35 @@ export const TravelTimeEstimator = ({
     setError(null);
 
     try {
-      // For demo, using estimated data
-      // In production, this would call backend API with OpenRouteService
+      // Use PG location string for geocoding, or fallback to default
+      const fromLocation = pgLocation || "Delhi, India";
+      
       const response = await fetch(`${BACKEND_URL}/api/ai/travel-time`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: pgCoordinates || { lat: 28.6139, lng: 77.2090 },
-          to: destination,
+          from_address: fromLocation,
+          to_address: destination,
           modes: ['foot-walking', 'cycling-regular', 'driving-car']
         }),
       });
 
       if (!response.ok) {
-        // Fallback to estimated data if backend fails
-        setTravelModes([
-          { mode: "walking", duration: 15, distance: 1200 },
-          { mode: "cycling", duration: 8, distance: 1500 },
-          { mode: "driving", duration: 12, distance: 2100 },
-        ]);
+        throw new Error('Failed to fetch travel time');
+      }
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        setError(data.error);
+        setTravelModes([]);
       } else {
-        const data = await response.json();
         setTravelModes(data.modes || []);
       }
     } catch (err) {
       console.error('Travel time estimation error:', err);
-      // Use fallback data
-      setTravelModes([
-        { mode: "walking", duration: 15, distance: 1200 },
-        { mode: "cycling", duration: 8, distance: 1500 },
-        { mode: "driving", duration: 12, distance: 2100 },
-      ]);
+      setError('Could not calculate travel time. Please try again.');
+      setTravelModes([]);
     } finally {
       setLoading(false);
     }
