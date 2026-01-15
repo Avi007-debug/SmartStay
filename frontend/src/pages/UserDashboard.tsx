@@ -227,10 +227,11 @@ const UserDashboard = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  savedPGs.map((saved) => {
+                  savedPGs.map((saved, _idx) => {
                     const pg = saved.pg_listing;
+                    const cardKey = saved.id || pg?.id || `saved-${_idx}`;
                     return (
-                      <Card key={saved.id} className="hover-lift border-2 hover:border-primary">
+                      <Card key={cardKey} className="hover-lift border-2 hover:border-primary">
                         <div className="flex flex-col sm:flex-row">
                           <div className="sm:w-48 h-32 bg-muted relative shrink-0">
                             {pg.images && pg.images.length > 0 && pg.images[0] ? (
@@ -284,8 +285,10 @@ const UserDashboard = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  recentlyViewedPGs.map((pg) => (
-                    <Card key={pg.id} className="hover-lift border-2 hover:border-primary">
+                  recentlyViewedPGs.map((pg, _idx) => {
+                    const cardKey = pg.id || pg.name || `recent-${_idx}`;
+                    return (
+                    <Card key={cardKey} className="hover-lift border-2 hover:border-primary">
                       <div className="flex flex-col sm:flex-row">
                         <div className="sm:w-48 h-32 bg-muted relative shrink-0">
                           {pg.image ? (
@@ -321,7 +324,8 @@ const UserDashboard = () => {
                         </CardContent>
                       </div>
                     </Card>
-                  ))
+                  );
+                  })
                 )}
               </TabsContent>
 
