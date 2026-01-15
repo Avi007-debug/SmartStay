@@ -332,7 +332,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **58 Features** implemented
 - **6 AI Endpoints** powered by Groq
-- **10 Database Tables** with RLS
+- **20 Database Tables** with RLS
 - **3 User Roles** (User, Owner, Admin)
 - **100% TypeScript** frontend
 - **Real-time** messaging & notifications
