@@ -50,6 +50,21 @@ import { pgService, reviewsService, storageService, savedPGsService, authService
 import { Loader2, Edit, Trash2, Pencil } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+// Helper function to track analytics
+const trackMetric = async (pgId: string, metric: 'views' | 'inquiries' | 'saves' | 'clicks') => {
+  try {
+    await fetch(`${BACKEND_URL}/api/analytics/increment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pg_id: pgId, metric })
+    });
+  } catch (error) {
+    console.error('Error tracking metric:', error);
+  }
+};
+
 const PGDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -93,6 +108,11 @@ const PGDetail = () => {
     }
 
     try {
+      // Track inquiry
+      if (id) {
+        trackMetric(id, 'inquiries');
+      }
+      
       // Create or get existing chat
       const chat = await chatService.createOrGet(pgData.id, pgData.owner_id, true);
       
@@ -366,6 +386,9 @@ const PGDetail = () => {
       if (pg) {
         setPgData(pg);
         
+        // Track view
+        trackMetric(id, 'views');
+        
         // Add to recently viewed
         addToRecentlyViewed({
           id: pg.id,
@@ -428,6 +451,8 @@ const PGDetail = () => {
       } else {
         await savedPGsService.save(id);
         setIsSaved(true);
+        // Track save
+        trackMetric(id, 'saves');
         toast({
           title: "Saved Successfully",
           description: "You can view this PG anytime in your dashboard",

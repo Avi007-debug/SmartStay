@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface RecentlyViewedPG {
   id: string;
@@ -11,10 +12,27 @@ export interface RecentlyViewedPG {
 
 const MAX_RECENT_ITEMS = 10;
 const STORAGE_KEY = 'smartstay_recently_viewed';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 export const useRecentlyViewed = () => {
-  const addToRecentlyViewed = (pg: Omit<RecentlyViewedPG, 'viewedAt'>) => {
+  const addToRecentlyViewed = async (pg: Omit<RecentlyViewedPG, 'viewedAt'>) => {
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // If logged in, save to backend (Supabase)
+        await fetch(`${BACKEND_URL}/api/recently-viewed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            pg_id: pg.id
+          })
+        });
+      }
+      
+      // Always save to localStorage as fallback/cache
       const existing = getRecentlyViewed();
       
       // Remove if already exists

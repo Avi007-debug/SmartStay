@@ -31,10 +31,13 @@ import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService, adminService, verificationService } from "@/lib/supabase";
+import { ModerationPanel } from "@/components/admin/ModerationPanel";
+import { DocumentReviewPanel } from "@/components/admin/DocumentReviewPanel";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalOwners: 0,
@@ -66,6 +69,8 @@ const AdminDashboard = () => {
         return;
       }
 
+      setCurrentUser(user);
+      
       // Load all admin data
       await loadAdminData();
     } catch (error) {
@@ -226,8 +231,8 @@ const AdminDashboard = () => {
           <TabsList>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="listings">Listings</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="verification">Verification Queue</TabsTrigger>
+            <TabsTrigger value="reports">Moderation</TabsTrigger>
+            <TabsTrigger value="verification">Document Verification</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="space-y-4 mt-6">
@@ -354,6 +359,12 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="mt-6">
+            {currentUser && <ModerationPanel adminId={currentUser.id} />}
+          </TabsContent>
+
+          <TabsContent value="verification" className="mt-6">
+            {currentUser && <DocumentReviewPanel adminId={currentUser.id} />}
+          </TabsContent>
             <Card>
               <CardHeader>
                 <CardTitle>Flagged Content</CardTitle>

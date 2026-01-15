@@ -15,6 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { VerificationUpload } from "@/components/verification/VerificationUpload";
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
+import { DocumentVerification } from "@/components/owner/DocumentVerification";
 import { 
   Building2, Eye, MessageCircle, TrendingUp, Plus, Edit, Trash2, 
   ToggleRight, Bell, CheckCircle, Clock, Users, DollarSign, 
@@ -385,55 +387,12 @@ const OwnerDashboard = () => {
 
               {/* Analytics Tab */}
               <TabsContent value="analytics" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <BarChart3 className="h-5 w-5 text-primary" />
-                        <span className="font-medium">Weekly Views</span>
-                      </div>
-                      <p className="text-3xl font-bold">1,247</p>
-                      <p className="text-sm text-success">+12% from last week</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <MessageCircle className="h-5 w-5 text-primary" />
-                        <span className="font-medium">Chat Requests</span>
-                      </div>
-                      <p className="text-3xl font-bold">48</p>
-                      <p className="text-sm text-success">+8% from last week</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        <span className="font-medium">Visit Requests</span>
-                      </div>
-                      <p className="text-3xl font-bold">12</p>
-                      <p className="text-sm text-muted-foreground">This month</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Performance Overview</CardTitle>
-                    <CardDescription>Your listings performance over time</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 flex items-center justify-center bg-muted/30 rounded-lg">
-                      <p className="text-muted-foreground">Analytics charts will appear here</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                {currentUser && <AnalyticsDashboard ownerId={currentUser.id} />}
               </TabsContent>
 
               {/* Verification Tab */}
               <TabsContent value="verification">
-                <VerificationUpload />
+                {currentUser && <DocumentVerification ownerId={currentUser.id} />}
               </TabsContent>
 
               {/* Profile Tab */}

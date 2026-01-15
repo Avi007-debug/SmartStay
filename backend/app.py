@@ -610,6 +610,622 @@ def health_check():
     })
 
 
+# ============================================
+# RECENTLY VIEWED ENDPOINTS
+# ============================================
+
+@app.route('/api/recently-viewed', methods=['POST'])
+def add_recently_viewed():
+    """
+    Add/update recently viewed PG for a user
+    Expected input: { "user_id": "...", "pg_id": "..." }
+    """
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        pg_id = data.get('pg_id')
+        
+        if not user_id or not pg_id:
+            return jsonify({"error": "user_id and pg_id are required"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return jsonify({"error": "Supabase not configured"}), 500
+        
+        # Upsert into recently_viewed (will update viewed_at if exists)
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+        }
+        
+        payload = {
+            'user_id': user_id,
+            'pg_id': pg_id,
+            'viewed_at': 'now()'
+        }
+        
+        response = requests.post(
+            f'{SUPABASE_URL}/rest/v1/recently_viewed',
+            headers=headers,
+            json=payload
+        )
+        
+        if response.status_code in [200, 201]:
+            return jsonify({"success": True, "message": "Added to recently viewed"})
+        else:
+            return jsonify({"error": response.text}), response.status_code
+            
+    except Exception as e:
+        print(f"Error adding recently viewed: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# MODERATION / CONTENT REPORTS ENDPOINTS
+# ============================================
+
+@app.route('/api/reports', methods=['GET'])
+def get_reports():
+    """
+    Get all content reports (admin only)
+    Query params: ?status=pending&content_type=listing
+    """
+    try:
+        status = request.args.get('status')
+        content_type = request.args.get('content_type')
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+        }
+        
+        url = f'{SUPABASE_URL}/rest/v1/content_reports?select=*,reporter:profiles!reporter_id(full_name)&order=created_at.desc'
+        
+        if status:
+            url += f'&status=eq.{status}'
+        if content_type:
+            url += f'&content_type=eq.{content_type}'
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({"error": response.text}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/reports', methods=['POST'])
+def create_report():
+    """
+    Create a new content report
+    Expected input: { "reporter_id": "...", "content_type": "listing", "content_id": "...", "reason": "spam", "description": "..." }
+    """
+    try:
+        data = request.json
+        required = ['reporter_id', 'content_type', 'content_id', 'reason']
+        
+        if not all(k in data for k in required):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        }
+        
+        response = requests.post(
+            f'{SUPABASE_URL}/rest/v1/content_reports',
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code in [200, 201]:
+            return jsonify(response.json()[0])
+        else:
+            return jsonify({"error": response.text}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/reports/<report_id>/review', methods=['POST'])
+def review_report(report_id):
+    """
+    Admin action: review and resolve a report
+    Expected input: { "admin_id": "...", "action": "resolve|dismiss", "resolution_notes": "...", "content_action": "remove|warn|none" }
+    """
+    try:
+        data = request.json
+        action = data.get('action')
+        admin_id = data.get('admin_id')
+        resolution_notes = data.get('resolution_notes', '')
+        content_action = data.get('content_action', 'none')
+        
+        if not action or not admin_id:
+            return jsonify({"error": "action and admin_id required"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        }
+        
+        # Get report details first
+        report_response = requests.get(
+            f'{SUPABASE_URL}/rest/v1/content_reports?id=eq.{report_id}',
+            headers=headers
+        )
+        
+        if report_response.status_code != 200 or not report_response.json():
+            return jsonify({"error": "Report not found"}), 404
+        
+        report = report_response.json()[0]
+        
+        # Update report status
+        update_data = {
+            'status': 'resolved' if action == 'resolve' else 'dismissed',
+            'reviewed_by': admin_id,
+            'resolution_notes': resolution_notes,
+            'resolved_at': 'now()'
+        }
+        
+        response = requests.patch(
+            f'{SUPABASE_URL}/rest/v1/content_reports?id=eq.{report_id}',
+            headers=headers,
+            json=update_data
+        )
+        
+        # If action is resolve and content should be removed
+        if action == 'resolve' and content_action == 'remove':
+            content_type = report['content_type']
+            content_id = report['content_id']
+            
+            if content_type == 'listing':
+                requests.patch(
+                    f'{SUPABASE_URL}/rest/v1/pg_listings?id=eq.{content_id}',
+                    headers=headers,
+                    json={'status': 'removed'}
+                )
+            elif content_type == 'review':
+                requests.patch(
+                    f'{SUPABASE_URL}/rest/v1/reviews?id=eq.{content_id}',
+                    headers=headers,
+                    json={'is_flagged': True}
+                )
+        
+        # Send notification to reporter
+        notification_data = {
+            'user_id': report['reporter_id'],
+            'type': 'listing_flagged',
+            'title': 'Report Reviewed',
+            'message': f'Your report has been {action}ed. {resolution_notes}',
+            'payload': {'report_id': report_id}
+        }
+        
+        requests.post(
+            f'{SUPABASE_URL}/rest/v1/notifications',
+            headers=headers,
+            json=notification_data
+        )
+        
+        return jsonify({"success": True, "message": f"Report {action}ed successfully"})
+        
+    except Exception as e:
+        print(f"Error reviewing report: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# DOCUMENT VERIFICATION ENDPOINTS
+# ============================================
+
+@app.route('/api/verification/upload-url', methods=['POST'])
+def get_upload_url():
+    """
+    Generate a signed upload URL for verification documents
+    Expected input: { "owner_id": "...", "file_name": "...", "content_type": "image/jpeg" }
+    Returns: { "upload_url": "...", "file_path": "..." }
+    """
+    try:
+        data = request.json
+        owner_id = data.get('owner_id')
+        file_name = data.get('file_name')
+        content_type = data.get('content_type', 'application/pdf')
+        
+        if not owner_id or not file_name:
+            return jsonify({"error": "owner_id and file_name required"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        # Generate unique file path
+        import uuid
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        file_path = f"verification/{owner_id}/{timestamp}_{uuid.uuid4().hex[:8]}_{file_name}"
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+        }
+        
+        # Create signed upload URL
+        response = requests.post(
+            f'{SUPABASE_URL}/storage/v1/object/verification-docs/{file_path}',
+            headers={**headers, 'Content-Type': content_type},
+            data=b''  # Empty file to create placeholder
+        )
+        
+        if response.status_code in [200, 201]:
+            return jsonify({
+                "file_path": file_path,
+                "upload_url": f'{SUPABASE_URL}/storage/v1/object/verification-docs/{file_path}',
+                "public_url": f'{SUPABASE_URL}/storage/v1/object/public/verification-docs/{file_path}'
+            })
+        else:
+            return jsonify({"error": response.text}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/verification/documents', methods=['POST'])
+def create_verification_document():
+    """
+    Create verification document record after upload
+    Expected input: { "owner_id": "...", "document_type": "trade_license", "file_url": "...", "file_name": "...", "pg_id": "..." }
+    """
+    try:
+        data = request.json
+        required = ['owner_id', 'document_type', 'file_url']
+        
+        if not all(k in data for k in required):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        }
+        
+        response = requests.post(
+            f'{SUPABASE_URL}/rest/v1/verification_documents',
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code in [200, 201]:
+            return jsonify(response.json()[0])
+        else:
+            return jsonify({"error": response.text}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/verification/documents', methods=['GET'])
+def get_verification_documents():
+    """
+    Get verification documents (filtered by owner_id or status)
+    Query params: ?owner_id=...&status=pending
+    """
+    try:
+        owner_id = request.args.get('owner_id')
+        status = request.args.get('status')
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+        }
+        
+        url = f'{SUPABASE_URL}/rest/v1/verification_documents?select=*,owner:profiles!owner_id(full_name)&order=created_at.desc'
+        
+        if owner_id:
+            url += f'&owner_id=eq.{owner_id}'
+        if status:
+            url += f'&status=eq.{status}'
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({"error": response.text}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/verification/documents/<doc_id>/review', methods=['POST'])
+def review_verification_document(doc_id):
+    """
+    Admin action: approve or reject verification document
+    Expected input: { "admin_id": "...", "status": "approved|rejected", "review_notes": "..." }
+    """
+    try:
+        data = request.json
+        status = data.get('status')
+        admin_id = data.get('admin_id')
+        review_notes = data.get('review_notes', '')
+        
+        if not status or not admin_id or status not in ['approved', 'rejected']:
+            return jsonify({"error": "Invalid status or missing admin_id"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        }
+        
+        # Get document to find owner
+        doc_response = requests.get(
+            f'{SUPABASE_URL}/rest/v1/verification_documents?id=eq.{doc_id}',
+            headers=headers
+        )
+        
+        if doc_response.status_code != 200 or not doc_response.json():
+            return jsonify({"error": "Document not found"}), 404
+        
+        document = doc_response.json()[0]
+        
+        # Update document
+        update_data = {
+            'status': status,
+            'reviewed_by': admin_id,
+            'review_notes': review_notes,
+            'reviewed_at': 'now()'
+        }
+        
+        response = requests.patch(
+            f'{SUPABASE_URL}/rest/v1/verification_documents?id=eq.{doc_id}',
+            headers=headers,
+            json=update_data
+        )
+        
+        # If approved, update owner's is_verified status
+        if status == 'approved':
+            requests.patch(
+                f'{SUPABASE_URL}/rest/v1/profiles?id=eq.{document["owner_id"]}',
+                headers=headers,
+                json={'is_verified': True}
+            )
+        
+        # Send notification to owner
+        notification_data = {
+            'user_id': document['owner_id'],
+            'type': f'verification_{status}',
+            'title': f'Document {status.capitalize()}',
+            'message': f'Your {document["document_type"]} has been {status}. {review_notes}',
+            'payload': {'document_id': doc_id}
+        }
+        
+        requests.post(
+            f'{SUPABASE_URL}/rest/v1/notifications',
+            headers=headers,
+            json=notification_data
+        )
+        
+        return jsonify({"success": True, "message": f"Document {status}"})
+        
+    except Exception as e:
+        print(f"Error reviewing document: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# ANALYTICS / METRICS ENDPOINTS
+# ============================================
+
+@app.route('/api/analytics/increment', methods=['POST'])
+def increment_metric():
+    """
+    Increment a metric for a PG listing
+    Expected input: { "pg_id": "...", "metric": "views|inquiries|saves|clicks" }
+    """
+    try:
+        data = request.json
+        pg_id = data.get('pg_id')
+        metric = data.get('metric')
+        
+        if not pg_id or not metric:
+            return jsonify({"error": "pg_id and metric required"}), 400
+        
+        if metric not in ['views', 'inquiries', 'saves', 'clicks']:
+            return jsonify({"error": "Invalid metric type"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+        }
+        
+        from datetime import datetime
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        # Try to get existing record for today
+        get_response = requests.get(
+            f'{SUPABASE_URL}/rest/v1/pg_metrics?pg_id=eq.{pg_id}&date=eq.{today}',
+            headers=headers
+        )
+        
+        if get_response.status_code == 200 and get_response.json():
+            # Update existing record
+            existing = get_response.json()[0]
+            new_value = existing[metric] + 1
+            
+            requests.patch(
+                f'{SUPABASE_URL}/rest/v1/pg_metrics?pg_id=eq.{pg_id}&date=eq.{today}',
+                headers=headers,
+                json={metric: new_value}
+            )
+        else:
+            # Create new record
+            requests.post(
+                f'{SUPABASE_URL}/rest/v1/pg_metrics',
+                headers={**headers, 'Prefer': 'resolution=merge-duplicates'},
+                json={
+                    'pg_id': pg_id,
+                    'date': today,
+                    metric: 1
+                }
+            )
+        
+        return jsonify({"success": True, "message": f"{metric} incremented"})
+        
+    except Exception as e:
+        print(f"Error incrementing metric: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/analytics/dashboard', methods=['GET'])
+def get_analytics_dashboard():
+    """
+    Get analytics dashboard data
+    Query params: ?owner_id=...&days=30
+    """
+    try:
+        owner_id = request.args.get('owner_id')
+        days = int(request.args.get('days', 30))
+        
+        if not owner_id:
+            return jsonify({"error": "owner_id required"}), 400
+        
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+        }
+        
+        # Get owner's PG listings
+        pgs_response = requests.get(
+            f'{SUPABASE_URL}/rest/v1/pg_listings?owner_id=eq.{owner_id}&select=id,name',
+            headers=headers
+        )
+        
+        if pgs_response.status_code != 200:
+            return jsonify({"error": "Failed to fetch listings"}), 500
+        
+        pgs = pgs_response.json()
+        pg_ids = [pg['id'] for pg in pgs]
+        
+        if not pg_ids:
+            return jsonify({
+                "total_views": 0,
+                "total_inquiries": 0,
+                "total_saves": 0,
+                "total_clicks": 0,
+                "daily_metrics": [],
+                "top_performing": []
+            })
+        
+        # Get metrics for last N days
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        metrics_url = f'{SUPABASE_URL}/rest/v1/pg_metrics?pg_id=in.({",".join(pg_ids)})&date=gte.{start_date.strftime("%Y-%m-%d")}&order=date.desc'
+        
+        metrics_response = requests.get(metrics_url, headers=headers)
+        
+        if metrics_response.status_code != 200:
+            return jsonify({"error": "Failed to fetch metrics"}), 500
+        
+        metrics = metrics_response.json()
+        
+        # Aggregate data
+        total_views = sum(m['views'] for m in metrics)
+        total_inquiries = sum(m['inquiries'] for m in metrics)
+        total_saves = sum(m['saves'] for m in metrics)
+        total_clicks = sum(m['clicks'] for m in metrics)
+        
+        # Group by date
+        from collections import defaultdict
+        daily_data = defaultdict(lambda: {'views': 0, 'inquiries': 0, 'saves': 0, 'clicks': 0})
+        
+        for m in metrics:
+            date = m['date']
+            daily_data[date]['views'] += m['views']
+            daily_data[date]['inquiries'] += m['inquiries']
+            daily_data[date]['saves'] += m['saves']
+            daily_data[date]['clicks'] += m['clicks']
+        
+        daily_metrics = [
+            {'date': date, **data}
+            for date, data in sorted(daily_data.items())
+        ]
+        
+        # Top performing PGs
+        pg_performance = defaultdict(lambda: {'views': 0, 'inquiries': 0, 'saves': 0})
+        
+        for m in metrics:
+            pg_performance[m['pg_id']]['views'] += m['views']
+            pg_performance[m['pg_id']]['inquiries'] += m['inquiries']
+            pg_performance[m['pg_id']]['saves'] += m['saves']
+        
+        # Find PG names
+        pg_map = {pg['id']: pg['name'] for pg in pgs}
+        
+        top_performing = [
+            {
+                'pg_id': pg_id,
+                'pg_name': pg_map.get(pg_id, 'Unknown'),
+                **data
+            }
+            for pg_id, data in sorted(
+                pg_performance.items(),
+                key=lambda x: x[1]['views'],
+                reverse=True
+            )[:5]
+        ]
+        
+        return jsonify({
+            "total_views": total_views,
+            "total_inquiries": total_inquiries,
+            "total_saves": total_saves,
+            "total_clicks": total_clicks,
+            "daily_metrics": daily_metrics,
+            "top_performing": top_performing
+        })
+        
+    except Exception as e:
+        print(f"Error fetching analytics: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     print("Starting SmartStay AI Backend...")
     print(f"AI provider configured: {ai.is_configured()} (provider={os.getenv('AI_PROVIDER', 'groq')})")
