@@ -30,12 +30,15 @@ interface SidebarProps {
 export const DashboardSidebar = ({ role }: SidebarProps) => {
   const location = useLocation();
   const [userName, setUserName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [savedCount, setSavedCount] = useState(0);
   const [chatCount, setChatCount] = useState(0);
 
   useEffect(() => {
     if (role === "user") {
       loadUserData();
+    } else if (role === "owner") {
+      loadOwnerData();
     }
   }, [role]);
 
@@ -55,6 +58,17 @@ export const DashboardSidebar = ({ role }: SidebarProps) => {
       }
     } catch (error) {
       console.error("Error loading user data:", error);
+    }
+  };
+
+  const loadOwnerData = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user?.profile) {
+        setOwnerName(user.profile.full_name || "Owner");
+      }
+    } catch (error) {
+      console.error("Error loading owner data:", error);
     }
   };
 

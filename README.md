@@ -1,70 +1,177 @@
-# SmartStay - Complete Setup & Documentation
+# 🏠 SmartStay - AI-Powered PG Accommodation Platform
 
-> **Version**: Production Ready  
-> **Last Updated**: January 8, 2026  
-> **Stack**: React + TypeScript + Supabase + Flask (Gemini AI)
+> **Your Smart Solution for Finding and Managing Paying Guest Accommodations**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green.svg)](https://supabase.com/)
+[![Flask](https://img.shields.io/badge/Flask-Python-black.svg)](https://flask.palletsprojects.com/)
+
+SmartStay is a comprehensive, production-ready platform that revolutionizes the PG (Paying Guest) accommodation search and management experience with AI-powered features, real-time communication, and intelligent recommendations.
 
 ---
 
-## 🚀 Quick Start (5 Minutes)
+## ✨ Key Highlights
 
-### 1. Prerequisites
-- Node.js 18+ installed
-- Python 3.8+ installed  
-- Supabase account (free tier)
-- Google Gemini API key (free)
+- 🤖 **6 AI-Powered Features** - Personalized recommendations, sentiment analysis, hidden charges detector, travel time estimator, description generator, and 24/7 chatbot support
+- 💬 **Anonymous Chat System** - Secure, real-time messaging between users and property owners
+- 🔔 **Smart Alerts** - Price drop notifications and vacancy alerts
+- 👥 **Multi-Role Support** - Separate dashboards for Users, Owners, and Admins
+- 📱 **Fully Responsive** - Seamless experience on desktop, tablet, and mobile
+- 🔒 **Enterprise Security** - Row-level security, authentication, and data protection
+- ⚡ **Real-time Updates** - Live notifications and instant messaging
 
-### 2. Clone & Install
+---
 
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** 18+ ([Download](https://nodejs.org/))
+- **Python** 3.8+ ([Download](https://www.python.org/))
+- **Supabase Account** ([Sign up](https://supabase.com/) - Free tier available)
+- **Groq API Key** ([Get free key](https://console.groq.com/))
+
+### Installation
+
+1. **Clone the Repository**
 ```bash
-# Clone repository
-git clone <your-repo-url>
-cd SmartStay
+git clone https://github.com/yourusername/smartstay.git
+cd smartstay
+```
 
-# Frontend setup
+2. **Setup Frontend**
+```bash
 cd frontend
 npm install
+```
 
-# Backend setup
+3. **Setup Backend**
+```bash
 cd ../backend
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
+4. **Configure Environment Variables**
 
-**Frontend** (`frontend/.env`):
+Create `frontend/.env`:
 ```env
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-**Backend** (`backend/.env`):
+Create `backend/.env`:
 ```env
-GEMINI_API_KEY=your_gemini_api_key
-# OPENROUTE_API_KEY=your_openroute_key (optional - for travel time)
+GROQ_API_KEY=your_groq_api_key
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_KEY=your_supabase_service_key
 ```
 
-### 4. Setup Supabase Database
+5. **Setup Database**
+- Go to Supabase Dashboard → SQL Editor
+- Copy content from `backend/supabase_schema.sql`
+- Execute the SQL to create all tables, policies, and functions
 
-1. Go to your Supabase Dashboard → SQL Editor
-2. Copy entire content from `backend/supabase_schema.sql`
-3. Paste and run (creates all tables, RLS policies, functions)
+6. **Run the Application**
 
-### 5. Run Application
-
-**Terminal 1 - Frontend**:
+**Terminal 1 - Frontend:**
 ```bash
 cd frontend
 npm run dev
-# Opens at http://localhost:8080
+# Access at http://localhost:8080
 ```
 
-**Terminal 2 - Backend**:
+**Terminal 2 - Backend:**
 ```bash
 cd backend
 python app.py
-# Runs at http://localhost:5000
+# API runs at http://localhost:5000
 ```
+
+---
+
+## 📸 Screenshots
+
+### User Dashboard
+![User Dashboard](frontend/public/image.png)
+*Manage saved PGs, chats, and preferences*
+
+### PG Search & Filters
+*Advanced search with multiple filters and AI recommendations*
+
+### Anonymous Chat
+*Secure messaging between users and owners*
+
+### Admin Panel
+*Comprehensive user and listing management*
+
+---
+
+## 🎯 Core Features
+
+### For Students/Users
+- 🔍 **Advanced Search** - Filter by location, price, amenities, gender preference
+- 💾 **Save Favorites** - Bookmark properties for later
+- 💬 **Anonymous Chat** - Contact owners without revealing identity
+- 📅 **Book Visits** - Schedule property viewings
+- ⭐ **Reviews & Ratings** - Read and write property reviews
+- ❓ **Q&A System** - Ask questions publicly on listings
+- 🔔 **Smart Alerts** - Get notified of price drops and vacancies
+- 🤖 **AI Assistant** - 24/7 chatbot for instant help
+
+### For Property Owners
+- 📝 **Easy Listing** - Post properties with AI-generated descriptions
+- 📊 **Analytics** - Track views, saves, and engagement
+- 💬 **Inquiry Management** - Respond to user messages
+- ❓ **Q&A Management** - Answer questions about properties
+- 🔄 **Toggle Availability** - Mark properties as active/inactive
+- 📸 **Multi-Image Upload** - Showcase properties with multiple photos
+- 📱 **WhatsApp Integration** - Add community group links
+
+### For Administrators
+- 👥 **User Management** - View and manage all users
+- ✅ **Verification System** - Approve user and owner accounts
+- 📋 **Listing Oversight** - Monitor all property listings
+- 📄 **Document Review** - Verify submitted documents
+
+---
+
+## 🤖 AI Features
+
+| Feature | Description | Technology |
+|---------|-------------|------------|
+| **Personalized Recommendations** | ML-based PG suggestions based on user preferences | Groq AI (llama-3.1-8b-instant) |
+| **Sentiment Analysis** | Analyze review emotions and provide insights | Natural Language Processing |
+| **Hidden Charges Detector** | Identify undisclosed fees in listings | AI Pattern Recognition |
+| **Travel Time Estimator** | Calculate commute time to college/work | Distance & Route API |
+| **Description Generator** | Auto-create compelling property descriptions | AI Text Generation |
+| **Support Chatbot** | 24/7 AI-powered customer assistance | Conversational AI |
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **React 18** + **TypeScript** - Modern UI framework
+- **Vite** - Lightning-fast build tool
+- **shadcn/ui** - Beautiful, accessible components
+- **Tailwind CSS** - Utility-first styling
+- **React Router** - Client-side routing
+- **Lucide Icons** - Modern icon library
+
+### Backend
+- **Flask** - Python web framework
+- **Groq AI** - Fast AI inference
+- **CORS** - Cross-origin resource sharing
+
+### Database & Services
+- **Supabase** - Backend-as-a-Service
+  - PostgreSQL database
+  - Authentication
+  - Real-time subscriptions
+  - File storage
+  - Row Level Security
 
 ---
 
@@ -72,317 +179,170 @@ python app.py
 
 ```
 SmartStay/
-├── frontend/                    # React + TypeScript + Vite
+├── frontend/                   # React + TypeScript application
 │   ├── src/
-│   │   ├── components/         # Reusable UI components
-│   │   ├── pages/             # Route pages
-│   │   ├── lib/               # Utilities & services
-│   │   │   └── supabase.ts    # All database operations
-│   │   └── App.tsx            # Main app & routing
-│   ├── .env                   # Supabase credentials
+│   │   ├── components/        # Reusable UI components
+│   │   │   ├── ai/           # AI feature components
+│   │   │   ├── chat/         # Chat interface
+│   │   │   ├── layout/       # Layout components
+│   │   │   └── ui/           # shadcn/ui components
+│   │   ├── pages/            # Route pages
+│   │   ├── lib/              # Utilities & services
+│   │   │   └── supabase.ts   # Database operations
+│   │   └── hooks/            # Custom React hooks
+│   ├── .env                  # Environment variables
 │   └── package.json
 │
-├── backend/                    # Flask + Gemini AI
-│   ├── app.py                 # Main API server
-│   ├── supabase_schema.sql    # Complete database schema
-│   ├── TEST_API.md            # API documentation
-│   ├── test_all.ps1           # API test script
-│   ├── .env                   # API keys
-│   └── requirements.txt
+├── backend/                   # Flask API server
+│   ├── app.py                # Main application
+│   ├── ai_provider.py        # AI integration
+│   ├── supabase_schema.sql   # Database schema
+│   ├── .env                  # API keys
+│   └── requirements.txt      # Python dependencies
 │
-└── CREATE_QNA_TABLE.sql       # Q&A feature (optional)
+├── FEATURES.md               # Complete features table
+└── README.md                 # This file
 ```
 
 ---
 
-## 🎯 Key Features
+## 🔐 Security
 
-### For Users/Students
-- 🔍 Search PGs with advanced filters
-- ⭐ Reviews with upvote/downvote
-- 💬 Anonymous chat with owners
-- 💰 Hidden charge detection (AI)
-- 🧠 Sentiment analysis on reviews (AI)
-- 📍 Save favorite PGs
-- 🔔 Vacancy alerts
-- ❓ Q&A with property owners
-
-### For Property Owners
-- 📝 List PG/hostels
-- ✅ Verification system (documents)
-- 💬 Respond to inquiries
-- 📊 View analytics
-- ❓ Answer user questions
-
-### For Admins
-- 👥 User management
-- 🏢 Listing management
-- ✅ Verification approval/rejection
-- 📊 Dashboard with stats
-- 🚩 Report moderation
+- ✅ **Row Level Security (RLS)** - Database-level access control
+- ✅ **Authentication** - Secure user login with Supabase Auth
+- ✅ **Email Verification** - Account validation
+- ✅ **Anonymous Profiles** - Privacy in chat communications
+- ✅ **Secure Storage** - Protected file uploads with RLS
+- ✅ **Input Validation** - Frontend and backend sanitization
 
 ---
 
-## 🗄️ Database Schema
+## 📊 Database Schema
 
-### Core Tables
-1. **profiles** - User/Owner/Admin accounts with roles
-2. **pg_listings** - Property listings with all details
-3. **reviews** - User reviews with voting system
-4. **saved_pgs** - Bookmark functionality
-5. **chats** - Anonymous messaging
-6. **messages** - Chat messages
-7. **notifications** - Real-time alerts
-8. **qna** - Q&A between users and owners
-9. **verification_documents** - Owner verification
-10. **vacancy_alerts** - User alert subscriptions
+**Core Tables:**
+- `profiles` - User information
+- `pg_listings` - Property listings
+- `reviews` - Ratings and reviews
+- `chats` & `messages` - Communication system
+- `saved_pgs` - Bookmarked properties
+- `qna` - Questions and answers
+- `notifications` - User alerts
+- `price_drop_alerts` - Price monitoring
+- `verification_documents` - Admin queue
 
-### Key Features
-- ✅ Row Level Security (RLS) on all tables
-- ✅ Real-time subscriptions (chat, notifications)
-- ✅ Automatic timestamps
-- ✅ Foreign key constraints
-- ✅ Indexes for performance
+**Views:**
+- `user_profiles` - Joined profiles + auth data
 
----
-
-## 🔧 Backend API Endpoints
-
-### Health Check
-**GET** `/health`
-```bash
-curl http://localhost:5000/health
-```
-
-### AI Sentiment Analysis
-**POST** `/api/ai/sentiment-analysis`
-```json
-{
-  "reviews": [{"text": "Great place!"}],
-  "pg_name": "Sunshine PG"
-}
-```
-
-### Hidden Charge Detection
-**POST** `/api/ai/hidden-charges`
-```json
-{
-  "description": "Spacious room...",
-  "rent": 8500,
-  "amenities": ["WiFi", "Water"]
-}
-```
-
-### AI Description Generator
-**POST** `/api/ai/generate-description`
-```json
-{
-  "amenities": ["WiFi", "AC"],
-  "location": "Koramangala",
-  "rent": 12000
-}
-```
-
-### Travel Time (Demo Mode)
-**POST** `/api/ai/travel-time`
-```json
-{
-  "from": {"lat": 28.6139, "lng": 77.2090},
-  "to": "College"
-}
-```
-
-> **Note**: Travel time uses OpenRouteService API (not connected yet). Add `OPENROUTE_API_KEY` to enable.
+**Features:**
+- Real-time triggers for notifications
+- Automated price drop alerts
+- Comprehensive RLS policies
 
 ---
 
 ## 🧪 Testing
 
-### Test Backend APIs
+### API Testing
 ```bash
 cd backend
-./test_all.ps1    # Automated test script
+# Run all API tests
+./test_all.ps1
 ```
 
-Or see `backend/TEST_API.md` for manual testing examples.
-
-### Test Frontend
-1. Start frontend: `npm run dev`
-2. Open http://localhost:8080
-3. Test flows:
-   - Sign up as user/owner
-   - Post a PG listing (owner)
-   - Search and save PGs (user)
-   - Leave reviews
-   - Use anonymous chat
-   - Admin dashboard (create admin user in Supabase)
+### Manual Testing
+1. Create test accounts (User, Owner, Admin)
+2. Test all user flows
+3. Verify AI features
+4. Check real-time updates
+5. Test mobile responsiveness
 
 ---
 
-## 🔐 User Roles & Access
-
-### User (Default)
-- Search and view PGs
-- Save favorites
-- Write reviews
-- Chat with owners
-- Set vacancy alerts
-- Ask questions
-
-### Owner
-- All user features +
-- Post PG listings
-- Submit verification documents
-- Answer user questions
-- View listing analytics
-
-### Admin
-- Access admin dashboard
-- Approve/reject verifications
-- Manage users and listings
-- View system stats
-- Moderate content
-
-> **Create Admin**: In Supabase → Table Editor → profiles → Edit user → Set `role = 'admin'`
-
----
-
-## 🔑 Environment Variables
-
-### Frontend (.env)
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### Backend (.env)
-```env
-# Required - Get from https://makersuite.google.com/app/apikey
-GEMINI_API_KEY=your_gemini_api_key
-
-# Optional - Get from https://openrouteservice.org/dev/#/signup
-OPENROUTE_API_KEY=your_openroute_key
-```
-
----
-
-## 🐛 Common Issues & Fixes
-
-### Frontend won't start
-```bash
-# Clear cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
-npm run dev
-```
-
-### Backend API errors
-- Check `GEMINI_API_KEY` is set in `.env`
-- Verify backend is running on port 5000
-- Check CORS settings in `app.py`
-
-### Database connection issues
-- Verify Supabase credentials in frontend `.env`
-- Check RLS policies are enabled
-- Ensure schema is fully executed
-
-### Admin dashboard not accessible
-- Create admin user: Update `profiles` table → set `role = 'admin'`
-- Sign out and sign in again
-
----
-
-## 📊 Database Management
-
-### View Data
-1. Go to Supabase Dashboard
-2. Navigate to Table Editor
-3. Select any table to view/edit
-
-### Reset Database
-```sql
--- Drop all tables (run in SQL Editor)
-DROP TABLE IF EXISTS profiles, pg_listings, reviews, saved_pgs, 
-  chats, messages, notifications, qna, verification_documents, 
-  vacancy_alerts, user_preferences, reports CASCADE;
-
--- Then re-run backend/supabase_schema.sql
-```
-
-### Backup Database
-1. Supabase Dashboard → Database → Backups
-2. Enable automatic backups (daily)
-
----
-
-## 🚢 Deployment
+## 🚀 Deployment
 
 ### Frontend (Vercel/Netlify)
-1. Connect GitHub repository
-2. Build command: `npm run build`
-3. Output directory: `dist`
-4. Add environment variables
+```bash
+cd frontend
+npm run build
+# Deploy dist/ folder
+```
 
-### Backend (Render/Railway)
-1. Connect repository
-2. Build command: `pip install -r requirements.txt`
-3. Start command: `python app.py`
-4. Add environment variables
+### Backend (Heroku/Railway)
+```bash
+cd backend
+# Deploy Flask app with requirements.txt
+```
 
----
-
-## 📝 Recent Updates
-
-### Latest Features
-✅ Admin dashboard with verification workflow  
-✅ Q&A system between users and owners  
-✅ Real-time notifications  
-✅ Anonymous chat system  
-✅ AI-powered sentiment analysis  
-✅ Hidden charge detection  
-✅ Comprehensive API testing suite  
-
-### Bug Fixes
-✅ Fixed rent display (monthly_rent → rent)  
-✅ Fixed amenities display (all categories)  
-✅ Fixed image loading with fallback  
-✅ Fixed review name display (anonymous support)  
-✅ Connected admin dashboard to real data  
+### Database
+- Supabase hosted PostgreSQL (no deployment needed)
+- Execute `supabase_schema.sql` in production project
 
 ---
 
-## 📚 Additional Resources
+## 📖 Documentation
 
-- **API Testing**: See `backend/TEST_API.md`
-- **Database Schema**: See `backend/supabase_schema.sql`
-- **Q&A Feature**: See `CREATE_QNA_TABLE.sql`
+- **[FEATURES.md](FEATURES.md)** - Complete features list with implementation details
+- **[backend/TEST_API.md](backend/TEST_API.md)** - API endpoint documentation
+- **[backend/supabase_schema.sql](backend/supabase_schema.sql)** - Database schema with comments
 
 ---
 
 ## 🤝 Contributing
 
+Contributions are welcome! Please follow these steps:
+
 1. Fork the repository
-2. Create feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -m 'Add feature'`
-4. Push to branch: `git push origin feature-name`
-5. Open pull request
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the MIT License.
-
----
-
-## 💡 Support
-
-For issues or questions:
-1. Check this documentation
-2. Review `backend/TEST_API.md` for API help
-3. Check Supabase logs for database issues
-4. Review browser console for frontend errors
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built with ❤️ using React, TypeScript, Supabase, and Google Gemini AI**
+## 👥 Authors
+
+**SmartStay Team**
+
+---
+
+## 📞 Contact & Support
+
+- **Email**: avimore088@gmail.com
+- **Phone**: +91 93225 64784
+
+---
+
+## 🙏 Acknowledgments
+
+- [React](https://reactjs.org/) - UI framework
+- [Supabase](https://supabase.com/) - Backend infrastructure
+- [Groq](https://groq.com/) - AI inference platform
+- [shadcn/ui](https://ui.shadcn.com/) - Component library
+- [Tailwind CSS](https://tailwindcss.com/) - Styling framework
+
+---
+
+## 📈 Stats
+
+- **58 Features** implemented
+- **6 AI Endpoints** powered by Groq
+- **10 Database Tables** with RLS
+- **3 User Roles** (User, Owner, Admin)
+- **100% TypeScript** frontend
+- **Real-time** messaging & notifications
+
+---
+
+<div align="center">
+
+**⭐ Star this repository if you find it helpful! ⭐**
+
+Made with ❤️ by the SmartStay Team
+
+</div>

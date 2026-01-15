@@ -41,11 +41,11 @@ export const Footer = () => {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                <span>support@smartstay.com</span>
+                <span>avimore088@gmail.com</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
-                <span>+91 98765 43210</span>
+                <span>+91 93225 64784</span>
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />

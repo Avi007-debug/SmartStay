@@ -895,7 +895,7 @@ export const verificationService = {
       .from('verification_documents')
       .select(`
         *,
-        owner:profiles!owner_id(id, full_name, email),
+        owner:profiles!owner_id(id, full_name, phone),
         pg:pg_listings!pg_id(id, name)
       `)
       .eq('status', 'pending')
@@ -911,7 +911,7 @@ export const verificationService = {
       .from('verification_documents')
       .select(`
         *,
-        owner:profiles!owner_id(id, full_name, email),
+        owner:profiles!owner_id(id, full_name, phone),
         pg:pg_listings!pg_id(id, name),
         reviewer:profiles!reviewed_by(id, full_name)
       `)
@@ -998,41 +998,24 @@ export const verificationService = {
 // ADMIN SERVICE
 // ============================================
 export const adminService = {
-  // Get all users with emails
+  // Get all users with emails from user_profiles view
   async getAllUsers() {
     const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        *,
-        user:id (
-          email:auth.users(email)
-        )
-      `)
+      .from('user_profiles')
+      .select('*')
       .order('created_at', { ascending: false })
 
-    if (error) {
-      // Fallback: fetch profiles and emails separately
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (profileError) throw profileError
-
-      // Manually fetch emails from auth metadata if needed
-      return profiles
-    }
-    
+    if (error) throw error
     return data
   },
 
-  // Get all listings
+  // Get all listings with owner info
   async getAllListings() {
     const { data, error } = await supabase
       .from('pg_listings')
       .select(`
         *,
-        owner:profiles!owner_id(id, full_name, email, phone)
+        owner:profiles!owner_id(id, full_name, phone)
       `)
       .order('created_at', { ascending: false })
 

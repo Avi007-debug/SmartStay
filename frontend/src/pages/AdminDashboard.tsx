@@ -246,6 +246,7 @@ const AdminDashboard = () => {
                     <tr>
                       <th className="text-left p-4 font-semibold">Name</th>
                       <th className="text-left p-4 font-semibold">Email</th>
+                      <th className="text-left p-4 font-semibold">Phone</th>
                       <th className="text-left p-4 font-semibold">Type</th>
                       <th className="text-left p-4 font-semibold">Status</th>
                       <th className="text-right p-4 font-semibold">Actions</th>
@@ -254,7 +255,7 @@ const AdminDashboard = () => {
                   <tbody>
                     {users.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
                           No users found
                         </td>
                       </tr>
@@ -263,8 +264,9 @@ const AdminDashboard = () => {
                         <tr key={user.id} className="border-b hover:bg-muted/50">
                           <td className="p-4">{user.full_name || 'N/A'}</td>
                           <td className="p-4 text-muted-foreground">{user.email || 'N/A'}</td>
+                          <td className="p-4 text-muted-foreground">{user.phone || 'N/A'}</td>
                           <td className="p-4">
-                            <Badge variant="secondary">{user.role}</Badge>
+                            <Badge variant="secondary" className="capitalize">{user.role}</Badge>
                           </td>
                           <td className="p-4">
                             {user.is_verified ? (
@@ -335,7 +337,11 @@ const AdminDashboard = () => {
                             )}
                           </td>
                           <td className="p-4 text-right">
-                            <Button variant="ghost" size="sm">View</Button>
+                            <Button variant="ghost" size="sm" asChild>
+                              <a href={`/pg/${listing.id}`} target="_blank" rel="noopener noreferrer">
+                                View
+                              </a>
+                            </Button>
                             <Button variant="ghost" size="sm">Verify</Button>
                           </td>
                         </tr>

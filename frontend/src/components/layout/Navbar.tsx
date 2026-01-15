@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Search, User, Bell, Menu, Building2, LogOut } from "lucide-react";
+import { Home, Search, User, Bell, Menu, Building2, LogOut, LayoutDashboard } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Sheet,
@@ -98,12 +98,23 @@ export const Navbar = () => {
   const allNavLinks = [
     { to: "/", label: "Home", icon: Home, roles: ["user", "owner", "admin"] },
     { to: "/search", label: "Search PGs", icon: Search, roles: ["user", "owner", "admin"] },
+    { 
+      to: currentUser ? `/${currentUser?.profile?.role || 'user'}-dashboard` : "/auth", 
+      label: "Dashboard", 
+      icon: LayoutDashboard, 
+      roles: ["user", "owner", "admin"],
+      requiresAuth: true
+    },
     { to: "/post-room", label: "Post Room", icon: Building2, roles: ["owner"] },
   ];
 
-  const navLinks = allNavLinks.filter(link => 
-    !currentUser || link.roles.includes(currentUser?.profile?.role || "user")
-  );
+  const navLinks = allNavLinks.filter(link => {
+    // If link requires auth, only show when authenticated
+    if (link.requiresAuth && !isAuthenticated) {
+      return false;
+    }
+    return !currentUser || link.roles.includes(currentUser?.profile?.role || "user");
+  });
 
   const isActive = (path: string) => location.pathname === path;
 
