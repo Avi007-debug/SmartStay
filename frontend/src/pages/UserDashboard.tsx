@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { authService, savedPGsService, storageService, notificationsService, chatService } from "@/lib/supabase";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,44 +19,38 @@ import { PersonalizedRecommendations } from "@/components/ai/PersonalizedRecomme
 import { VacancyAlertSettings } from "@/components/ai/VacancyAlertSettings";
 import { AnonymousChatInterface } from "@/components/chat/AnonymousChatInterface";
 import { OnboardingTour, useOnboardingTour } from "@/components/OnboardingTour";
+import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { Heart, Clock, Star, Bell, MessageCircle, User, MapPin, Building2, Sparkles, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const UserDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [budget, setBudget] = useState([5000, 15000]);
   const [chatCount, setChatCount] = useState(0);
   const [activeTab, setActiveTab] = useState("recommendations");
   const { shouldShowTour } = useOnboardingTour("user-dashboard");
+  const { getRecentlyViewed } = useRecentlyViewed();
+  const [recentlyViewedPGs, setRecentlyViewedPGs] = useState<any[]>([]);
 
   useEffect(() => {
     loadUserData();
     
-    // Handle hash-based tab navigation
-    const hash = window.location.hash.replace('#', '');
-    if (hash && ['recommendations', 'saved', 'chats', 'alerts', 'profile'].includes(hash)) {
+    // Load recently viewed PGs
+    const recentPGs = getRecentlyViewed();
+    setRecentlyViewedPGs(recentPGs);
+  }, []);
+
+  useEffect(() => {
+    const hash = location.hash.replace('#', '');
+    if (hash && ['recommendations', 'saved', 'recently-viewed', 'chats', 'alerts', 'profile'].includes(hash)) {
       setActiveTab(hash);
+    } else {
+      setActiveTab('recommendations');
     }
-  }, []);
-
-  useEffect(() => {
-    // Listen for hash changes
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      if (hash && ['recommendations', 'saved', 'chats', 'alerts', 'profile'].includes(hash)) {
-        setActiveTab(hash);
-      }
-    };
-    
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
+  }, [location.hash]);
 
   const loadUserData = async () => {
     try {
@@ -194,6 +188,10 @@ const UserDashboard = () => {
                   AI Recommendations
                 </TabsTrigger>
                 <TabsTrigger value="saved" data-tour="saved">Saved PGs</TabsTrigger>
+                <TabsTrigger value="recently-viewed">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Recently Viewed
+                </TabsTrigger>
                 <TabsTrigger value="chats" data-tour="chats">Anonymous Chats</TabsTrigger>
                 <TabsTrigger value="alerts">Vacancy Alerts</TabsTrigger>
                 <TabsTrigger value="profile">My Profile</TabsTrigger>
@@ -270,6 +268,60 @@ const UserDashboard = () => {
                       </Card>
                     );
                   })
+                )}
+              </TabsContent>
+
+              {/* Recently Viewed Tab */}
+              <TabsContent value="recently-viewed" className="space-y-4">
+                {recentlyViewedPGs.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="p-12 text-center">
+                      <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">No recently viewed PGs</p>
+                      <Button variant="outline" className="mt-4" asChild>
+                        <Link to="/search">Browse PGs</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  recentlyViewedPGs.map((pg) => (
+                    <Card key={pg.id} className="hover-lift border-2 hover:border-primary">
+                      <div className="flex flex-col sm:flex-row">
+                        <div className="sm:w-48 h-32 bg-muted relative shrink-0">
+                          {pg.image ? (
+                            <img
+                              src={pg.image}
+                              alt={pg.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                              <Building2 className="h-12 w-12 text-primary/40" />
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="flex-1 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                            <h3 className="font-semibold text-lg mb-1">{pg.name}</h3>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
+                              <MapPin className="h-4 w-4" />
+                              {pg.city}
+                            </p>
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-bold text-primary">₹{pg.rent}/mo</span>
+                              <span className="text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3 inline mr-1" />
+                                {new Date(pg.viewedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          <Button asChild>
+                            <Link to={`/pg/${pg.id}`}>View Again</Link>
+                          </Button>
+                        </CardContent>
+                      </div>
+                    </Card>
+                  ))
                 )}
               </TabsContent>
 

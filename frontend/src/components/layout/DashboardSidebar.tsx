@@ -21,6 +21,7 @@ import {
   Users,
   Flag,
   CheckCircle,
+  Sparkles,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -74,11 +75,13 @@ export const DashboardSidebar = ({ role }: SidebarProps) => {
 
   const userLinks = [
     { to: "/user-dashboard", label: "Dashboard", icon: Home },
+    { to: "/user-dashboard#recommendations", label: "AI Recommendations", icon: Sparkles },
     { to: "/user-dashboard#saved", label: "Saved PGs", icon: Heart, badge: savedCount > 0 ? savedCount.toString() : undefined },
+    { to: "/user-dashboard#recently-viewed", label: "Recently Viewed", icon: Eye },
     { to: "/user-dashboard#chats", label: "Anonymous Chats", icon: MessageCircle, badge: chatCount > 0 ? chatCount.toString() : undefined },
-    { to: "/notifications", label: "Notifications", icon: Bell },
-    { to: "/preferences", label: "Preferences", icon: Settings },
+    { to: "/user-dashboard#alerts", label: "Vacancy Alerts", icon: Bell },
     { to: "/user-dashboard#profile", label: "My Profile", icon: User },
+    { to: "/preferences", label: "Preferences", icon: Settings },
   ];
 
   const ownerLinks = [
@@ -87,6 +90,8 @@ export const DashboardSidebar = ({ role }: SidebarProps) => {
     { to: "/owner-dashboard#listings", label: "My Listings", icon: Building2 },
     { to: "/owner-dashboard#inquiries", label: "Inquiries", icon: MessageCircle },
     { to: "/owner-dashboard#qna", label: "Q&A Responses", icon: HelpCircle },
+    { to: "/owner-dashboard#verification", label: "Verification", icon: CheckCircle },
+    { to: "/owner-dashboard#analytics", label: "Analytics", icon: TrendingUp },
     { to: "/notifications", label: "Notifications", icon: Bell },
     { to: "/owner-dashboard#profile", label: "My Profile", icon: User },
   ];
@@ -112,7 +117,7 @@ export const DashboardSidebar = ({ role }: SidebarProps) => {
           </div>
           <div>
             <p className="font-semibold text-sm">
-              {role === "user" ? userName || "User" : role === "owner" ? "Rajesh Kumar" : "Admin User"}
+              {role === "user" ? userName || "User" : role === "owner" ? (ownerName || "Owner") : "Admin User"}
             </p>
             <Badge variant="secondary" className="text-xs capitalize">{role}</Badge>
           </div>
