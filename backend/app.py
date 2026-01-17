@@ -138,9 +138,32 @@ def detect_hidden_charges():
         deposit = data.get('deposit', 0)
         amenities = data.get('amenities', [])
         rules = data.get('rules', '')
-        maintenance_charges = data.get('maintenanceCharges', '')
-        electricity_charges = data.get('electricityCharges', '')
-        food_included = data.get('foodIncluded', False)
+        
+        # Accept BOTH naming conventions (camelCase AND snake_case)
+        maintenance_charges = (
+            data.get('maintenanceCharges') or 
+            data.get('maintenance_charges') or 
+            data.get('maintenance') or 
+            ''
+        )
+        electricity_charges = (
+            data.get('electricityCharges') or 
+            data.get('electricity_charges') or 
+            data.get('electricity') or 
+            ''
+        )
+        food_included = (
+            data.get('foodIncluded') or 
+            data.get('food_included') or 
+            data.get('food') or 
+            False
+        )
+        
+        # Debug logging to see what we actually received
+        print(f"DEBUG - Received payload keys: {list(data.keys())}")
+        print(f"DEBUG - maintenance_charges resolved to: '{maintenance_charges}'")
+        print(f"DEBUG - electricity_charges resolved to: '{electricity_charges}'")
+        print(f"DEBUG - food_included resolved to: {food_included}")
         
         # Prepare comprehensive listing text
         amenities_text = ', '.join(amenities) if amenities else 'Not specified'
