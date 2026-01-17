@@ -1242,7 +1242,14 @@ const PGDetail = () => {
                       <Button 
                         variant="outline" 
                         className="border-green-500 text-green-700 hover:bg-green-50"
-                        onClick={() => window.open(pgData.whatsapp_group_link, '_blank')}
+                        onClick={() => {
+                          let url = pgData.whatsapp_group_link;
+                          // Ensure URL has proper protocol
+                          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'https://' + url;
+                          }
+                          window.open(url, '_blank');
+                        }}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Join WhatsApp Group

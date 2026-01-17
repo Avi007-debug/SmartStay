@@ -722,13 +722,19 @@ export const priceDropAlertsService = {
   async getByPGId(pgId: string) {
     const { data: { user } } = await supabase.auth.getUser()
 
-    const { data } = await supabase
+    if (!user) return null;
+
+    const { data, error } = await supabase
       .from('price_drop_alerts')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
       .eq('pg_id', pgId)
-      .single()
+      .maybeSingle()
 
+    if (error) {
+      console.error('Error fetching price drop alert:', error);
+      return null;
+    }
     return data
   },
 
