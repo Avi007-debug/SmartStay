@@ -646,7 +646,7 @@ def add_recently_viewed():
             return jsonify({"error": "user_id and pg_id are required"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         if not SUPABASE_URL or not SUPABASE_KEY:
             return jsonify({"error": "Supabase not configured"}), 500
@@ -696,7 +696,7 @@ def get_reports():
         content_type = request.args.get('content_type')
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -735,7 +735,7 @@ def create_report():
             return jsonify({"error": "Missing required fields"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -776,7 +776,7 @@ def review_report(report_id):
             return jsonify({"error": "action and admin_id required"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -871,7 +871,7 @@ def get_upload_url():
             return jsonify({"error": "owner_id and file_name required"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         # Generate unique file path
         import uuid
@@ -918,7 +918,7 @@ def create_verification_document():
             return jsonify({"error": "Missing required fields"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -953,7 +953,7 @@ def get_verification_documents():
         status = request.args.get('status')
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -994,7 +994,7 @@ def review_verification_document(doc_id):
             return jsonify({"error": "Invalid status or missing admin_id"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -1080,7 +1080,7 @@ def increment_metric():
             return jsonify({"error": "Invalid metric type"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,
@@ -1140,7 +1140,7 @@ def get_analytics_dashboard():
             return jsonify({"error": "owner_id required"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
         
         headers = {
             'apikey': SUPABASE_KEY,

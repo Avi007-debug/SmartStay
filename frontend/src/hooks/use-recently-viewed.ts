@@ -21,14 +21,17 @@ export const useRecentlyViewed = () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // If logged in, save to backend (Supabase)
-        await fetch(`${API_CONFIG.BACKEND_URL}/api/recently-viewed`, {
+        // If logged in, save to backend (Supabase) - but don't block on errors
+        fetch(`${API_CONFIG.BACKEND_URL}/api/recently-viewed`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: user.id,
             pg_id: pg.id
           })
+        }).catch(err => {
+          // Silently fail - localStorage will still work
+          console.debug('Backend recently viewed save failed:', err);
         });
       }
       
