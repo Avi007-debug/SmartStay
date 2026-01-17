@@ -43,6 +43,10 @@ import {
   ExternalLink,
   AlertCircle,
   Sparkles,
+  Zap,
+  Utensils,
+  Wrench,
+  DollarSign,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -782,6 +786,60 @@ const PGDetail = () => {
                       </div>
                     </div>
                   </CardContent>
+
+                {/* Pricing & Charges */}
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-lg mb-4">Pricing & Additional Charges</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Monthly Rent</p>
+                          <p className="font-semibold text-lg">₹{pgData.rent?.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                        <Clock className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Security Deposit</p>
+                          <p className="font-semibold text-lg">₹{pgData.deposit?.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      {pgData.maintenance_charges && Number(pgData.maintenance_charges) > 0 && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                          <Wrench className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Maintenance Charges</p>
+                            <p className="font-semibold">₹{Number(pgData.maintenance_charges).toLocaleString()}/month</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {pgData.electricity_charges && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                          <Zap className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Electricity Charges</p>
+                            <p className="font-semibold">{pgData.electricity_charges}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {pgData.food_included && (
+                        <div className="flex items-center gap-3 p-3 bg-success/10 rounded-lg border border-success/20">
+                          <Utensils className="h-5 w-5 text-success" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Food</p>
+                            <p className="font-semibold text-success">Included in Rent</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
                 </Card>
               </TabsContent>
 
