@@ -233,7 +233,7 @@ Return ONLY valid JSON (no markdown, no text before/after):
   "transparency_score": <number 0-100>
 }}
 
-START WITH {{ - NO OTHER TEXT!
+START WITH {{ - NO OTHER TEXT!"""
         
         response_text = ai.generate(prompt, temperature=0)
         
