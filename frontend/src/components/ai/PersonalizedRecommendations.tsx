@@ -152,8 +152,8 @@ export const PersonalizedRecommendations = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {recommendations.map((rec) => (
-              <RecommendationCard key={rec.id} {...rec} />
+            {recommendations.map((rec, index) => (
+              <RecommendationCard key={`${rec.id}-${index}`} {...rec} />
             ))}
           </div>
         )}

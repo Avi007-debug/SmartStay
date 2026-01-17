@@ -629,7 +629,7 @@ def add_recently_viewed():
             return jsonify({"error": "user_id and pg_id are required"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
         
         if not SUPABASE_URL or not SUPABASE_KEY:
             return jsonify({"error": "Supabase not configured"}), 500
