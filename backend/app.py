@@ -13,7 +13,16 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:8080", "http://localhost:5173"])
+
+# Configure CORS for production and development
+allowed_origins = [
+    "http://localhost:8080",
+    "http://localhost:5173",
+    os.getenv("FRONTEND_URL", "")
+]
+# Filter out empty strings
+allowed_origins = [origin for origin in allowed_origins if origin]
+CORS(app, origins=allowed_origins)
 
 # ============================================
 # AI ENDPOINTS
@@ -1233,4 +1242,8 @@ if __name__ == '__main__':
         print("✅ AI provider initialized successfully")
     else:
         print("⚠️  Warning: AI provider not configured. Set GROQ_API_KEY or GEMINI_API_KEY in .env")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    
+    # Use debug mode only in development
+    port = int(os.getenv('PORT', 5000))
+    debug_mode = os.getenv('FLASK_ENV', 'development') == 'development'
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

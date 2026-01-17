@@ -10,6 +10,11 @@
 
 SmartStay is a comprehensive, production-ready platform that revolutionizes the PG (Paying Guest) accommodation search and management experience with AI-powered features, real-time communication, and intelligent recommendations.
 
+## 🌐 Live Demo
+
+- **Frontend**: `https://your-app-name.vercel.app` *(Deploy to get your link)*
+- **Backend API**: `https://your-backend.onrender.com` *(Deploy to get your link)*
+
 ---
 
 ## ✨ Key Highlights
@@ -299,7 +304,58 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📝 License
+## � Deployment
+
+### Deploy Frontend to Vercel
+
+1. Push your code to GitHub
+2. Go to [Vercel](https://vercel.com/) and sign in
+3. Click "New Project" and import your repository
+4. Configure the build settings:
+   - **Framework Preset**: Vite
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+5. Add environment variables:
+   - `VITE_SUPABASE_URL`: Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon key
+   - `VITE_BACKEND_URL`: Your Render backend URL (add after deploying backend)
+6. Click "Deploy"
+7. Copy your deployment URL and update it in the README
+
+### Deploy Backend to Render
+
+1. Push your code to GitHub
+2. Go to [Render](https://render.com/) and sign in
+3. Click "New +" → "Web Service"
+4. Connect your repository and configure:
+   - **Name**: `smartstay-backend`
+   - **Region**: Choose closest to your users
+   - **Branch**: `main`
+   - **Root Directory**: `backend`
+   - **Runtime**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn app:app`
+5. Add environment variables:
+   - `GROQ_API_KEY`: Your Groq API key
+   - `SUPABASE_URL`: Your Supabase project URL
+   - `SUPABASE_SERVICE_KEY`: Your Supabase service role key
+   - `FRONTEND_URL`: Your Vercel deployment URL
+   - `FLASK_ENV`: `production`
+6. Click "Create Web Service"
+7. Copy your backend URL and add it to Vercel environment variables as `VITE_BACKEND_URL`
+8. Redeploy frontend on Vercel to apply the new environment variable
+
+### Important Notes
+
+- Free tier on Render may have cold starts (services sleep after 15 min of inactivity)
+- Update CORS settings in [backend/app.py](backend/app.py) with your production URLs
+- Keep your API keys secure and never commit them to version control
+- After deployment, test all AI features to ensure API keys are working correctly
+
+---
+
+## �📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
