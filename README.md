@@ -12,8 +12,8 @@ SmartStay is a comprehensive, production-ready platform that revolutionizes the 
 
 ## 🌐 Live Demo
 
-- **Frontend**: `https://your-app-name.vercel.app` *(Deploy to get your link)*
-- **Backend API**: `https://your-backend.onrender.com` *(Deploy to get your link)*
+- **Frontend**: `https://smartstay-ruddy.vercel.app/` 
+- **Backend API**: `https://smartstay-izus.onrender.com` 
 
 ---
 
