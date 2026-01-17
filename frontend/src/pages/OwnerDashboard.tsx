@@ -252,7 +252,7 @@ const OwnerDashboard = () => {
                             </Link>
                           </Button>
                           <Button variant="outline" size="sm" asChild>
-                            <Link to={`/post-room/${listing.id}`}>
+                            <Link to={`/edit-post/${listing.id}`}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Link>
@@ -283,7 +283,7 @@ const OwnerDashboard = () => {
                           </Button>
                         ) : (
                           <Button variant="outline" size="sm" asChild>
-                            <Link to={`/post-room/${listing.id}`}>
+                            <Link to={`/edit-post/${listing.id}`}>
                               Add WhatsApp Group
                             </Link>
                           </Button>
