@@ -150,10 +150,39 @@ def detect_hidden_charges():
         electricity_text = electricity_charges if electricity_charges and str(electricity_charges).strip() else "Not specified"
         food_text = "Yes, food is included" if food_included else "Not specified"
         
+        # Pre-calculate what is specified for clarity
+        has_maintenance = maintenance_text != "Not specified"
+        has_electricity = electricity_text != "Not specified"
+        has_food = food_text != "Not specified"
+        
         # Check what information is actually provided
         has_description = bool(description and len(description.strip()) > 20)
         has_amenities = bool(amenities and len(amenities) > 0)
         has_rules = bool(rules and len(str(rules).strip()) > 10)
+        
+        # Calculate base transparency score in Python (more reliable than AI)
+        base_score = 40  # Base for having rent + deposit
+        
+        if has_maintenance:
+            base_score += 15
+        if has_electricity:
+            base_score += 15
+        if has_food:
+            base_score += 10
+        if has_amenities and len(amenities) >= 3:
+            base_score += 10
+        if has_description and len(description.strip()) >= 50:
+            base_score += 5
+        if has_rules:
+            base_score += 5
+        
+        # Determine risk level based on score
+        if base_score >= 85:
+            risk_level = "low"
+        elif base_score >= 55:
+            risk_level = "low"
+        else:
+            risk_level = "medium"
         
         prompt = f"""You are analyzing a PG (Paying Guest) listing for transparency and potential hidden charges.
 
@@ -175,65 +204,35 @@ House Rules & Terms:
 {rules if rules else 'No rules specified'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ CRITICAL INSTRUCTIONS - READ THE DATA ABOVE FIRST! ⚠️
+PRE-CALCULATED INFORMATION STATUS:
+✓ Maintenance charges specified: {"YES - " + maintenance_text if has_maintenance else "NO - Not specified"}
+✓ Electricity charges specified: {"YES - " + electricity_text if has_electricity else "NO - Not specified"}
+✓ Food availability specified: {"YES - " + food_text if has_food else "NO - Not specified"}
 
-STEP 1: CHECK WHAT IS ACTUALLY SPECIFIED
-Look at the three fields marked with ** above:
-✓ If MAINTENANCE CHARGES shows "₹[amount]/month" or a number → IT IS SPECIFIED
-✓ If ELECTRICITY CHARGES shows a number or rate (like "200" or "₹5/unit") → IT IS SPECIFIED  
-✓ If FOOD AVAILABILITY says "Yes" or describes food → IT IS SPECIFIED
-✗ ONLY if it says "Not specified" → THEN it is missing
+PRE-CALCULATED TRANSPARENCY SCORE: {base_score}/100
+(Already calculated based on available information)
 
-STEP 2: CALCULATE TRANSPARENCY SCORE
+YOUR TASK:
+Based on the status above, identify:
+1. What items are marked as "NO - Not specified" → Add these to "missing_information"
+2. Any other concerns in the description or rules
+3. Relevant questions the user should ask
 
-BASE: 40 points (rent + deposit provided)
+CRITICAL RULES:
+- If status shows "YES - ₹500/month" for maintenance → DO NOT flag it as missing
+- If status shows "YES - 200" for electricity → DO NOT flag it as missing
+- ONLY flag items marked "NO - Not specified"
 
-ADD points for SPECIFIED information:
-+ Maintenance IS specified (has ₹ or number): +15 points
-+ Electricity IS specified (has number/rate): +15 points
-+ Food IS specified (says Yes or details): +10 points
-+ Amenities list with 3+ items: +10 points
-+ Description 50+ words: +5 points
-+ Rules specified: +5 points
-
-DEDUCT points for MISSING information:
-- Maintenance shows "Not specified": -10 points
-- Electricity shows "Not specified": -10 points
-- Food shows "Not specified": -5 points
-- No description or very short: -5 points
-
-SCORE RANGES:
-85-100: Excellent (all critical info provided)
-70-84: Very Good (most info clear)
-55-69: Good (basic transparency)
-40-54: Fair (missing some details)
-0-39: Poor (many details missing)
-
-STEP 3: LIST ONLY ACTUAL MISSING INFO
-
-For "potential_hidden_charges" and "missing_information":
-- ONLY include items that show "Not specified" in the data above
-- DO NOT flag maintenance if it shows "₹500/month" 
-- DO NOT flag electricity if it shows "200" or any value
-- DO NOT flag food if it says "Yes, food is included"
-
-EXAMPLE:
-Data shows: "MAINTENANCE CHARGES: ₹500/month"
-✓ Correct: Add +15 to score, do NOT add to potential_hidden_charges
-✗ Wrong: Add "Maintenance Charges" to potential_hidden_charges with reason "Not specified"
-
-Return ONLY valid JSON (no markdown, no text before/after):
+Return ONLY valid JSON (no markdown):
 {{
-  "risk_level": "low/medium/high",
   "potential_hidden_charges": [
-    {{"charge": "name", "reason": "why hidden"}}
+    {{"charge": "name", "reason": "why it might be hidden (only for items marked NO)"}}
   ],
-  "missing_information": ["only items showing 'Not specified'"],
-  "questions_to_ask": ["questions about unclear items"],
-  "transparency_score": <number 0-100>
+  "missing_information": ["only items marked 'NO - Not specified' above"],
+  "questions_to_ask": ["relevant questions about unclear items"]
 }}
 
-START WITH {{ - NO OTHER TEXT!"""
+START WITH {{"""
         
         response_text = ai.generate(prompt, temperature=0)
         
@@ -287,24 +286,17 @@ START WITH {{ - NO OTHER TEXT!"""
         
         result = json.loads(result_text)
         
+        # Add the pre-calculated score and risk level
+        result['transparency_score'] = base_score
+        result['risk_level'] = risk_level
+        
         # Validate and sanitize response
         if not isinstance(result, dict):
             result = {}
         
-        # Ensure risk_level is valid
-        risk_level = result.get('risk_level', 'medium')
-        if risk_level not in ['low', 'medium', 'high']:
-            risk_level = 'medium'
+        # Use pre-calculated values
         result['risk_level'] = risk_level
-        
-        # Ensure transparency_score is valid (0-100)
-        transparency_score = result.get('transparency_score', 50)
-        try:
-            transparency_score = float(transparency_score)
-            transparency_score = max(0, min(100, transparency_score))
-        except (ValueError, TypeError):
-            transparency_score = 50
-        result['transparency_score'] = int(transparency_score)
+        result['transparency_score'] = base_score
         
         # Ensure arrays exist and are valid
         if 'potential_hidden_charges' not in result or not isinstance(result['potential_hidden_charges'], list):
