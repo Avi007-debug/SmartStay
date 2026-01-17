@@ -388,14 +388,19 @@ const PGDetail = () => {
         // Track view
         trackMetric(id, 'views');
         
-        // Add to recently viewed
-        addToRecentlyViewed({
-          id: pg.id,
-          name: pg.name,
-          city: pg.city || pg.address?.city || '',
-          rent: pg.rent,
-          image: pg.images?.[0]
-        });
+        // Get current user to check if they're the owner
+        const user = await authService.getCurrentUser();
+        
+        // Add to recently viewed (only if user is not the owner)
+        if (!user || user.id !== pg.owner_id) {
+          addToRecentlyViewed({
+            id: pg.id,
+            name: pg.name,
+            city: pg.city || pg.address?.city || '',
+            rent: pg.rent,
+            image: pg.images?.[0]
+          });
+        }
         
         // Load reviews
         const pgReviews = await reviewsService.getByPGId(id);
@@ -1288,10 +1293,10 @@ const PGDetail = () => {
                     size="lg" 
                     variant="accent"
                     onClick={() => {
-                      if (pgData.contact_number) {
+                      if (pgData?.owner?.phone) {
                         toast({
                           title: "Owner Contact",
-                          description: `Phone: ${pgData.contact_number}`,
+                          description: `Phone: ${pgData.owner.phone}`,
                         });
                       } else {
                         toast({
@@ -1345,11 +1350,11 @@ const PGDetail = () => {
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    {pgData.contact_number && (
+                    {pgData?.owner?.phone && (
                       <button
                         className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors cursor-pointer w-full"
                         onClick={() => {
-                          navigator.clipboard.writeText(pgData.contact_number);
+                          navigator.clipboard.writeText(pgData.owner.phone);
                           toast({
                             title: "Copied!",
                             description: "Phone number copied to clipboard",
@@ -1357,7 +1362,7 @@ const PGDetail = () => {
                         }}
                       >
                         <Phone className="h-4 w-4" />
-                        <span className="hover:underline">{pgData.contact_number}</span>
+                        <span className="hover:underline">{pgData.owner.phone}</span>
                       </button>
                     )}
                   </div>

@@ -76,34 +76,46 @@ const PostRoom = () => {
     try {
       const pg = await pgService.getById(id);
       if (pg) {
+        console.log('Loaded PG data:', pg);
         // Populate form with existing data
         setFormData({
           name: pg.name || "",
-          gender: pg.gender_preference || "",
+          gender: pg.gender || pg.gender_preference || "",
           roomType: pg.room_type || "",
-          address: typeof pg.address === 'string' ? pg.address : pg.address?.street || "",
-          city: pg.city || "",
+          address: typeof pg.address === 'string' ? pg.address : (pg.address?.street || pg.address?.full || ""),
+          city: pg.city || (typeof pg.address === 'object' ? pg.address?.city : ""),
           state: typeof pg.address === 'object' ? pg.address?.state || "" : "",
           pincode: typeof pg.address === 'object' ? pg.address?.pincode || "" : "",
-          college: "",
+          college: pg.nearest_college || "",
           distance: pg.distance_from_college?.toString() || "",
-          rent: pg.monthly_rent?.toString() || "",
+          rent: (pg.rent || pg.monthly_rent)?.toString() || "",
           deposit: pg.deposit?.toString() || "",
           totalBeds: pg.total_beds?.toString() || "",
           availableBeds: pg.available_beds?.toString() || "",
-          curfew: "",
-          rules: "",
+          curfew: typeof pg.rules === 'object' ? pg.rules?.curfewTime || "" : "",
+          rules: typeof pg.rules === 'object' ? pg.rules?.customRules || "" : (pg.rules || ""),
           amenities: pg.amenities || [],
           cleanlinessLevel: [pg.cleanliness_level || 3],
-          strictnessLevel: [3],
+          strictnessLevel: [pg.strictness_level || 3],
           whatsappGroup: pg.whatsapp_group_link || "",
           description: pg.description || "",
-          foodIncluded: pg.amenities?.includes("food") || false,
-          maintenanceCharges: "",
-          electricityCharges: "",
+          foodIncluded: pg.amenities?.includes("Food Included") || false,
+          maintenanceCharges: pg.maintenance_charges?.toString() || "",
+          electricityCharges: pg.electricity_charges || "",
         });
+
+        // Load existing images as preview URLs
+        if (pg.images && Array.isArray(pg.images) && pg.images.length > 0) {
+          const imageObjects = pg.images.map((url: string) => ({
+            file: null as any,
+            preview: url,
+            isExisting: true
+          }));
+          setUploadedImages(imageObjects);
+        }
       }
     } catch (error) {
+      console.error('Error loading PG data:', error);
       toast({
         title: "Error",
         description: "Failed to load PG data",
@@ -241,11 +253,22 @@ const PostRoom = () => {
       return;
     }
 
-    // Step 4: Photos Validation
-    if (uploadedImages.length < 3) {
+    // Step 4: Photos Validation (skip minimum check for edit mode with existing images)
+    const hasExistingImages = uploadedImages.some((img: any) => img.isExisting);
+    if (!isEditMode && uploadedImages.length < 3) {
       toast({
         title: "Photos Required",
         description: "Please upload at least 3 photos of your property",
+        variant: "destructive",
+      });
+      setStep(4);
+      return;
+    }
+
+    if (isEditMode && uploadedImages.length === 0) {
+      toast({
+        title: "Photos Required",
+        description: "Please keep or upload at least 1 photo",
         variant: "destructive",
       });
       setStep(4);
@@ -301,33 +324,60 @@ const PostRoom = () => {
         status: 'active',
       };
 
-      const createdPG = await pgService.create(listingData);
+      let pgId: string;
       
-      // Upload images
-      const imageUrls: string[] = [];
-      for (const { file } of uploadedImages) {
+      if (isEditMode && id) {
+        // Update existing PG
+        await pgService.update(id, listingData);
+        pgId = id;
+      } else {
+        // Create new PG
+        const createdPG = await pgService.create(listingData);
+        pgId = createdPG.id;
+      }
+      
+      // Separate existing images from new uploads
+      const existingImageUrls: string[] = [];
+      const newImages: { file: File, preview: string }[] = [];
+      
+      for (const image of uploadedImages) {
+        if ((image as any).isExisting) {
+          // Keep existing image URLs
+          existingImageUrls.push(image.preview);
+        } else if (image.file) {
+          // New images to upload
+          newImages.push(image);
+        }
+      }
+      
+      // Upload new images
+      const newImageUrls: string[] = [];
+      for (const { file } of newImages) {
         try {
-          const { url } = await storageService.uploadPGImage(file, createdPG.id);
-          imageUrls.push(url);
+          const { url } = await storageService.uploadPGImage(file, pgId);
+          newImageUrls.push(url);
         } catch (error) {
           console.error('Error uploading image:', error);
         }
       }
 
-      // Update PG with image URLs
-      if (imageUrls.length > 0) {
-        await pgService.update(createdPG.id, {
-          images: imageUrls
+      // Combine existing and new image URLs
+      const allImageUrls = [...existingImageUrls, ...newImageUrls];
+      
+      // Update PG with all image URLs
+      if (allImageUrls.length > 0) {
+        await pgService.update(pgId, {
+          images: allImageUrls
         });
       }
 
       toast({
         title: "Success!",
-        description: "Your PG listing has been published successfully",
+        description: isEditMode ? "Your PG listing has been updated successfully" : "Your PG listing has been published successfully",
       });
 
       // Navigate to the listing detail page
-      navigate(`/pg/${createdPG.id}`);
+      navigate(`/pg/${pgId}`);
 
     } catch (error: any) {
       console.error('Error creating listing:', error);
