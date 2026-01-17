@@ -203,7 +203,15 @@ IMPORTANT ANALYSIS RULES:
 3. Only flag as "hidden charge" if there's reason to believe it costs extra but isn't mentioned
 4. Give CREDIT for what IS provided - don't just focus on what's missing
 5. A listing with clear rent, deposit, and good amenities list should score AT LEAST 60/100
-6. If MAINTENANCE CHARGES, ELECTRICITY CHARGES, or FOOD are specified above as actual values (not "Not specified"), DO NOT flag them as missing
+
+CRITICAL - READ CAREFULLY:
+Look at the MAINTENANCE CHARGES, ELECTRICITY CHARGES, and FOOD AVAILABILITY fields above.
+- If it says "₹500/month" or any price → IT IS SPECIFIED, DO NOT flag it as missing or hidden
+- If it says "Yes, food is included" → IT IS SPECIFIED, DO NOT flag it as missing
+- If it says "As per usage" or "Fixed ₹200" → IT IS SPECIFIED, DO NOT flag it as missing
+- ONLY flag as missing if it literally says "Not specified"
+
+Example: If you see "MAINTENANCE CHARGES: ₹500/month" above, DO NOT add "Maintenance Charges" to potential_hidden_charges or missing_information.
 
 Return ONLY valid JSON:
 {{
@@ -305,9 +313,56 @@ CRITICAL INSTRUCTION: Your response MUST be ONLY the JSON object above. NO expla
                 })
         result['potential_hidden_charges'] = valid_charges
         
-        if 'missing_information' not in result or not isinstance(result['missing_information'], list):
-            result['missing_information'] = []
-        result['missing_information'] = [str(x) for x in result['missing_information'] if x]
+        # Post-processing: Remove false positives - charges that were actually provided
+        # Check if maintenance, electricity, or food were specified
+        has_maintenance = maintenance_charges and str(maintenance_charges).strip() and str(maintenance_charges) != '0'
+        has_electricity = electricity_charges and str(electricity_charges).strip()
+        has_food = food_included
+        
+        # Filter out charges that are actually specified
+        filtered_charges = []
+        for charge in result['potential_hidden_charges']:
+            charge_name_lower = charge['charge'].lower()
+            
+            # Skip if maintenance was provided and this charge is about maintenance
+            if has_maintenance and ('maintenance' in charge_name_lower):
+                continue
+            
+            # Skip if electricity was provided and this charge is about electricity
+            if has_electricity and ('electricity' in charge_name_lower or 'electric' in charge_name_lower):
+                continue
+            
+            # Skip if food was provided and this charge is about food
+            if has_food and ('food' in charge_name_lower):
+                continue
+            
+            filtered_charges.append(charge)
+        
+        result['potential_hidden_charges'] = filtered_charges
+        
+        # Also filter missing_information
+        filtered_missing = []
+        for item in result.get('missing_information', []):
+            item_lower = item.lower()
+            
+            if has_maintenance and 'maintenance' in item_lower:
+                continue
+            if has_electricity and ('electricity' in item_lower or 'electric' in item_lower):
+                continue
+            if has_food and 'food' in item_lower:
+                continue
+            
+            filtered_missing.append(item)
+        
+        result['missing_information'] = filtered_missing
+        
+        # Recalculate transparency score if we removed charges
+        original_charge_count = len(valid_charges)
+        filtered_charge_count = len(filtered_charges)
+        if original_charge_count > filtered_charge_count and result['transparency_score'] < 70:
+            # Boost score since we removed false positives
+            score_boost = (original_charge_count - filtered_charge_count) * 10
+            result['transparency_score'] = min(100, result['transparency_score'] + score_boost)
         
         if 'questions_to_ask' not in result or not isinstance(result['questions_to_ask'], list):
             result['questions_to_ask'] = []
