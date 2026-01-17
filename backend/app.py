@@ -27,6 +27,13 @@ CORS(app, origins=allowed_origins)
 # ============================================
 # AI ENDPOINTS
 # ============================================
+@app.route("/")
+def home():
+    return "SmartStay backend is running"
+
+@app.route("/api/health")
+def health():
+    return {"status": "ok"}
 
 @app.route('/api/ai/sentiment-analysis', methods=['POST'])
 def sentiment_analysis():
