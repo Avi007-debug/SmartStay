@@ -216,7 +216,9 @@ Return ONLY valid JSON:
   "transparency_score": <number 0-100>
 }}
 
-BE REASONABLE: If the listing has rent, deposit, amenities list, and a description, the score should be 60+ unless there are serious red flags."""
+BE REASONABLE: If the listing has rent, deposit, amenities list, and a description, the score should be 60+ unless there are serious red flags.
+
+CRITICAL INSTRUCTION: Your response MUST be ONLY the JSON object above. NO explanations, NO markdown, NO extra text before or after. Start your response with {{ and end with }}. Do NOT write "Here's the analysis" or any other commentary."""
         
         response_text = ai.generate(prompt, temperature=0)
         
@@ -228,6 +230,27 @@ BE REASONABLE: If the listing has rent, deposit, amenities list, and a descripti
         
         result_text = response_text.strip()
         print(f"AI Response (first 200 chars): {result_text[:200]}")
+        
+        # Remove markdown code blocks and headers
+        if result_text.startswith('```json'):
+            result_text = result_text[7:]
+        if result_text.startswith('```'):
+            result_text = result_text[3:]
+        if result_text.endswith('```'):
+            result_text = result_text[:-3]
+        
+        # Remove common AI response prefixes
+        prefixes_to_remove = [
+            "Here's the analysis:",
+            "Based on the provided listing, here's the analysis:",
+            "Based on the listing:",
+            "Here is the analysis:",
+            "Analysis:",
+        ]
+        for prefix in prefixes_to_remove:
+            if result_text.startswith(prefix):
+                result_text = result_text[len(prefix):].strip()
+                break
         
         # Remove markdown code blocks
         if result_text.startswith('```json'):
