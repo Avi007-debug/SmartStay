@@ -126,44 +126,72 @@ Return ONLY a valid JSON object with this exact structure:
 def detect_hidden_charges():
     """
     Detect potential hidden charges from PG listing details
-    Expected input: { "description": "...", "rent": 8500, "deposit": 5000, ... }
+    Expected input: { "description": "...", "rent": 8500, "deposit": 5000, "amenities": [...], "rules": "..." }
     """
     try:
         if not ai.is_configured():
             return jsonify({"error": "AI provider not configured"}), 500
         
         data = request.json
-        description = data.get('description', '')
+        description = data.get('description', '').strip()
         rent = data.get('rent', 0)
         deposit = data.get('deposit', 0)
         amenities = data.get('amenities', [])
         rules = data.get('rules', '')
         
-        prompt = f"""Analyze this PG listing for potential hidden charges or missing cost information.
+        # Validate input data
+        if not rent or rent <= 0:
+            return jsonify({
+                "risk_level": "low",
+                "potential_hidden_charges": [],
+                "missing_information": ["Monthly rent not specified"],
+                "questions_to_ask": ["What is the monthly rent?"],
+                "transparency_score": 0
+            })
+        
+        # Build a comprehensive context
+        amenities_text = ', '.join(amenities) if amenities else 'Not specified'
+        description_text = description if description else 'No description provided'
+        rules_text = rules if rules else 'No rules specified'
+        
+        prompt = f"""You are a PG/Hostel listing analyzer. Analyze this listing for transparency and potential hidden charges.
 
-Listing Details:
+LISTING DETAILS:
 - Monthly Rent: ₹{rent}
 - Security Deposit: ₹{deposit}
-- Amenities: {', '.join(amenities) if amenities else 'Not specified'}
-- Description: {description}
-- Rules: {rules}
+- Amenities: {amenities_text}
+- Description: {description_text}
+- Rules: {rules_text}
 
-Identify:
-1. Potential hidden charges that are NOT clearly mentioned (electricity, maintenance, food, parking, etc.)
-2. Vague cost information that needs clarification
-3. Risk level (low/medium/high)
-4. Specific questions tenants should ask
+ANALYZE FOR:
+1. Hidden charges not mentioned (electricity, WiFi, maintenance, food, laundry, parking, etc.)
+2. Missing cost information
+3. Vague pricing
+4. Calculate transparency score (0-100)
 
-Return ONLY a valid JSON object:
+SCORING CRITERIA:
+- 80-100: All costs clearly mentioned, no ambiguity
+- 60-79: Most costs mentioned, minor details missing
+- 40-59: Several costs unclear or missing
+- 20-39: Many hidden charges likely, vague pricing
+- 0-19: Very poor transparency, high risk
+
+Return ONLY valid JSON (no extra text):
 {{
-  "risk_level": "low/medium/high",
+  "risk_level": "low|medium|high",
+  "transparency_score": 75,
   "potential_hidden_charges": [
-    {{"charge": "charge name", "reason": "why it might be hidden"}}
+    {{"charge": "Electricity Bill", "reason": "Not mentioned in description or amenities"}}
   ],
-  "missing_information": ["info1", "info2"],
-  "questions_to_ask": ["question1", "question2"],
-  "transparency_score": <number 0-100>
-}}"""
+  "missing_information": ["Electricity charges", "Maintenance fees"],
+  "questions_to_ask": ["Are electricity charges included?", "Is there a maintenance fee?"]
+}}
+
+IMPORTANT:
+- risk_level: "high" if score < 40, "medium" if 40-70, "low" if > 70
+- Include at least 2-3 questions to ask
+- List common charges that are missing
+- Be specific about what's unclear"""
         
         response_text = ai.generate(prompt)
         result_text = response_text.strip()
@@ -195,7 +223,47 @@ Return ONLY a valid JSON object:
                 print(f"No JSON found in response: {result_text[:200]}")
                 raise e
         
-        return jsonify(result)
+        # Validate and sanitize the result
+        if not isinstance(result, dict):
+            raise ValueError("AI response is not a valid object")
+        
+        # Ensure all required fields exist with defaults
+        validated_result = {
+            "risk_level": result.get("risk_level", "medium"),
+            "transparency_score": min(100, max(0, int(result.get("transparency_score", 50)))),
+            "potential_hidden_charges": result.get("potential_hidden_charges", []),
+            "missing_information": result.get("missing_information", []),
+            "questions_to_ask": result.get("questions_to_ask", [])
+        }
+        
+        # Validate risk_level
+        if validated_result["risk_level"] not in ["low", "medium", "high"]:
+            validated_result["risk_level"] = "medium"
+        
+        # Ensure arrays are actually arrays
+        for field in ["potential_hidden_charges", "missing_information", "questions_to_ask"]:
+            if not isinstance(validated_result[field], list):
+                validated_result[field] = []
+        
+        # Validate charge structure
+        validated_charges = []
+        for charge in validated_result["potential_hidden_charges"]:
+            if isinstance(charge, dict) and "charge" in charge and "reason" in charge:
+                validated_charges.append({
+                    "charge": str(charge["charge"]),
+                    "reason": str(charge["reason"])
+                })
+        validated_result["potential_hidden_charges"] = validated_charges
+        
+        # Ensure minimum data quality
+        if not validated_result["questions_to_ask"]:
+            validated_result["questions_to_ask"] = [
+                "Are electricity charges included in rent?",
+                "Are there any maintenance fees?",
+                "What other charges should I expect?"
+            ]
+        
+        return jsonify(validated_result)
         
     except Exception as e:
         print(f"Error in hidden charge detection: {str(e)}")

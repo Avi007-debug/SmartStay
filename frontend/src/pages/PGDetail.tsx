@@ -878,7 +878,9 @@ const PGDetail = () => {
                         rent: pgData.rent || 0,
                         deposit: pgData.deposit || 0,
                         amenities: pgData.amenities || [],
-                        rules: pgData.rules || ''
+                        rules: typeof pgData.rules === 'object' 
+                          ? (pgData.rules.customRules || '') 
+                          : (pgData.rules || '')
                       }}
                     />
                   </CardContent>
