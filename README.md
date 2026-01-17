@@ -10,6 +10,10 @@
 
 SmartStay is a comprehensive, production-ready platform that revolutionizes the PG (Paying Guest) accommodation search and management experience with AI-powered features, real-time communication, and intelligent recommendations.
 
+## 🌐 Live Demo
+
+- **Frontend**: `https://smartstay-ruddy.vercel.app/` 
+- **Backend API**: `https://smartstay-izus.onrender.com` 
 ---
 
 ## ✨ Key Highlights
