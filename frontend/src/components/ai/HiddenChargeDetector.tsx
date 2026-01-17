@@ -63,7 +63,11 @@ export const HiddenChargeDetector = ({
             ? pgData.rules 
             : typeof pgData.rules === 'object' 
               ? JSON.stringify(pgData.rules) 
-              : ''
+              : '',
+          // 🔴 CRITICAL: Include these fields for accurate hidden charge detection
+          maintenanceCharges: pgData.maintenanceCharges || '',
+          electricityCharges: pgData.electricityCharges || '',
+          foodIncluded: pgData.foodIncluded ?? false
         };
 
         const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/ai/hidden-charges`, {
