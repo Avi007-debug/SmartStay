@@ -30,7 +30,7 @@ class AIProvider:
     def is_configured(self) -> bool:
         return self.client is not None
 
-    def generate(self, prompt: str, max_tokens: int = 1024) -> str:
+    def generate(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.7) -> str:
         if not self.is_configured():
             raise RuntimeError('Groq client not configured. Set GROQ_API_KEY and install SDK')
 
@@ -41,7 +41,7 @@ class AIProvider:
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
+                temperature=temperature,
                 max_tokens=max_tokens
             )
             

@@ -121,35 +121,95 @@ def detect_hidden_charges():
         deposit = data.get('deposit', 0)
         amenities = data.get('amenities', [])
         rules = data.get('rules', '')
+        maintenance_charges = data.get('maintenanceCharges', '')
+        electricity_charges = data.get('electricityCharges', '')
+        food_included = data.get('foodIncluded', False)
         
-        prompt = f"""Analyze this PG listing for potential hidden charges or missing cost information.
+        # Prepare comprehensive listing text
+        amenities_text = ', '.join(amenities) if amenities else 'Not specified'
+        
+        # Format additional charge information
+        maintenance_text = f"₹{maintenance_charges}/month" if maintenance_charges and str(maintenance_charges).strip() and str(maintenance_charges) != '0' else "Not specified"
+        electricity_text = electricity_charges if electricity_charges and str(electricity_charges).strip() else "Not specified"
+        food_text = "Yes, food is included" if food_included else "Not specified"
+        
+        # Check what information is actually provided
+        has_description = bool(description and len(description.strip()) > 20)
+        has_amenities = bool(amenities and len(amenities) > 0)
+        has_rules = bool(rules and len(str(rules).strip()) > 10)
+        
+        prompt = f"""You are analyzing a PG (Paying Guest) listing for transparency and potential hidden charges.
 
-Listing Details:
-- Monthly Rent: ₹{rent}
-- Security Deposit: ₹{deposit}
-- Amenities: {', '.join(amenities) if amenities else 'Not specified'}
-- Description: {description}
-- Rules: {rules}
+COMPLETE LISTING INFORMATION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Monthly Rent: ₹{rent}
+Security Deposit: ₹{deposit}
 
-Identify:
-1. Potential hidden charges that are NOT clearly mentioned (electricity, maintenance, food, parking, etc.)
-2. Vague cost information that needs clarification
-3. Risk level (low/medium/high)
-4. Specific questions tenants should ask
+Amenities Provided: {amenities_text}
 
-Return ONLY a valid JSON object:
+**MAINTENANCE CHARGES:** {maintenance_text}
+**ELECTRICITY CHARGES:** {electricity_text}
+**FOOD AVAILABILITY:** {food_text}
+
+Property Description:
+{description if description else 'No description provided'}
+
+House Rules & Terms:
+{rules if rules else 'No rules specified'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCORING GUIDELINES - BE FAIR AND REASONABLE:
+
+START WITH BASE SCORE:
+- Has rent and deposit clearly stated: +40 points (baseline)
+- Has amenities list with 3+ items: +15 points
+- Has detailed description (50+ words): +15 points  
+- Has rules/terms specified: +10 points
+
+DEDUCT FOR MISSING CRITICAL INFORMATION:
+- No mention of electricity (included/extra): -5 to -10 points
+- No mention of maintenance: -5 to -10 points
+- No mention of food availability: -3 to -7 points (less critical)
+- No mention of parking: -3 to -5 points (less critical)
+- Vague or ambiguous cost terms: -5 to -10 points
+
+FINAL SCORE RANGES:
+- 80-100: Excellent - All major costs clearly stated, minimal unknowns
+- 60-79: Good - Most information clear, minor details missing
+- 40-59: Fair - Basic info provided but several items unclear
+- 20-39: Poor - Many important details missing
+- 0-19: Very Poor - Minimal information, high risk
+
+IMPORTANT ANALYSIS RULES:
+1. If an amenity is LISTED (e.g., "Wi-Fi" in amenities), assume it's INCLUDED unless stated otherwise
+2. Common amenities like Wi-Fi, Hot Water, TV typically mean they're provided - don't flag as hidden
+3. Only flag as "hidden charge" if there's reason to believe it costs extra but isn't mentioned
+4. Give CREDIT for what IS provided - don't just focus on what's missing
+5. A listing with clear rent, deposit, and good amenities list should score AT LEAST 60/100
+
+Return ONLY valid JSON:
 {{
   "risk_level": "low/medium/high",
   "potential_hidden_charges": [
-    {{"charge": "charge name", "reason": "why it might be hidden"}}
+    {{"charge": "specific charge name", "reason": "why you believe this might be extra/hidden"}}
   ],
-  "missing_information": ["info1", "info2"],
-  "questions_to_ask": ["question1", "question2"],
+  "missing_information": ["only truly missing cost details"],
+  "questions_to_ask": ["specific questions about legitimately unclear items"],
   "transparency_score": <number 0-100>
-}}"""
+}}
+
+BE REASONABLE: If the listing has rent, deposit, amenities list, and a description, the score should be 60+ unless there are serious red flags."""
         
-        response_text = ai.generate(prompt)
+        response_text = ai.generate(prompt, temperature=0)
+        
+        # Debug logging
+        if not response_text or not response_text.strip():
+            print("ERROR: AI returned empty response")
+            print(f"Prompt was: {prompt[:200]}...")
+            raise ValueError("AI returned empty response")
+        
         result_text = response_text.strip()
+        print(f"AI Response (first 200 chars): {result_text[:200]}")
         
         # Remove markdown code blocks
         if result_text.startswith('```json'):
@@ -159,12 +219,108 @@ Return ONLY a valid JSON object:
         if result_text.endswith('```'):
             result_text = result_text[:-3]
         
-        result = json.loads(result_text.strip())
+        # Extract JSON if there's extra text
+        result_text = result_text.strip()
+        if '{' in result_text and '}' in result_text:
+            start = result_text.find('{')
+            end = result_text.rfind('}') + 1
+            result_text = result_text[start:end]
+        else:
+            print(f"ERROR: No JSON found in response: {result_text}")
+            raise ValueError("No valid JSON in AI response")
+        
+        result = json.loads(result_text)
+        
+        # Validate and sanitize response
+        if not isinstance(result, dict):
+            result = {}
+        
+        # Ensure risk_level is valid
+        risk_level = result.get('risk_level', 'medium')
+        if risk_level not in ['low', 'medium', 'high']:
+            risk_level = 'medium'
+        result['risk_level'] = risk_level
+        
+        # Ensure transparency_score is valid (0-100)
+        transparency_score = result.get('transparency_score', 50)
+        try:
+            transparency_score = float(transparency_score)
+            transparency_score = max(0, min(100, transparency_score))
+        except (ValueError, TypeError):
+            transparency_score = 50
+        result['transparency_score'] = int(transparency_score)
+        
+        # Ensure arrays exist and are valid
+        if 'potential_hidden_charges' not in result or not isinstance(result['potential_hidden_charges'], list):
+            result['potential_hidden_charges'] = []
+        
+        # Validate charge objects
+        valid_charges = []
+        for charge in result['potential_hidden_charges']:
+            if isinstance(charge, dict) and 'charge' in charge and 'reason' in charge:
+                valid_charges.append({
+                    'charge': str(charge['charge']),
+                    'reason': str(charge['reason'])
+                })
+        result['potential_hidden_charges'] = valid_charges
+        
+        if 'missing_information' not in result or not isinstance(result['missing_information'], list):
+            result['missing_information'] = []
+        result['missing_information'] = [str(x) for x in result['missing_information'] if x]
+        
+        if 'questions_to_ask' not in result or not isinstance(result['questions_to_ask'], list):
+            result['questions_to_ask'] = []
+        result['questions_to_ask'] = [str(x) for x in result['questions_to_ask'] if x]
+        
+        # Ensure at least some questions
+        if len(result['questions_to_ask']) < 3:
+            default_questions = [
+                "Are there any additional charges apart from rent and deposit?",
+                "What utilities are included in the rent?",
+                "Is there a maintenance fee, and what does it cover?"
+            ]
+            for q in default_questions:
+                if q not in result['questions_to_ask']:
+                    result['questions_to_ask'].append(q)
+                if len(result['questions_to_ask']) >= 3:
+                    break
+        
         return jsonify(result)
         
+    except json.JSONDecodeError as e:
+        print(f"JSON Parse Error in hidden charge detection: {str(e)}")
+        print(f"Response text was: {response_text if 'response_text' in locals() else 'N/A'}")
+        # Return a safe fallback response
+        return jsonify({
+            "risk_level": "medium",
+            "potential_hidden_charges": [],
+            "missing_information": ["Unable to analyze - please verify all charges with owner"],
+            "questions_to_ask": [
+                "Are there any additional charges apart from rent and deposit?",
+                "What utilities are included in the rent?",
+                "Is there a maintenance fee?"
+            ],
+            "transparency_score": 50,
+            "error": "Analysis temporarily unavailable"
+        })
     except Exception as e:
         print(f"Error in hidden charge detection: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        print(f"Error type: {type(e).__name__}")
+        if 'response_text' in locals():
+            print(f"Response was: {response_text[:500] if response_text else 'EMPTY'}")
+        # Return fallback response instead of 500 error
+        return jsonify({
+            "risk_level": "medium",
+            "potential_hidden_charges": [],
+            "missing_information": ["Unable to analyze listing at this time"],
+            "questions_to_ask": [
+                "Please verify all charges and fees with the owner",
+                "Ask about electricity, maintenance, and any other costs",
+                "Confirm what amenities are included in the rent"
+            ],
+            "transparency_score": 50,
+            "error": str(e)
+        })
 
 
 @app.route('/api/ai/travel-time', methods=['POST'])

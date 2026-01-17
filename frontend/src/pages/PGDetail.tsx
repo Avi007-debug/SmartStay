@@ -879,7 +879,10 @@ const PGDetail = () => {
                         rent: pgData.rent || 0,
                         deposit: pgData.deposit || 0,
                         amenities: pgData.amenities || [],
-                        rules: pgData.rules || ''
+                        rules: pgData.rules || '',
+                        maintenanceCharges: pgData.maintenance_charges,
+                        electricityCharges: pgData.electricity_charges,
+                        foodIncluded: pgData.food_included,
                       }}
                     />
                   </CardContent>

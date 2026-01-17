@@ -745,6 +745,9 @@ const PostRoom = () => {
                     deposit: Number(formData.deposit),
                     amenities: formData.amenities,
                     rules: formData.rules,
+                    maintenanceCharges: formData.maintenanceCharges,
+                    electricityCharges: formData.electricityCharges,
+                    foodIncluded: formData.foodIncluded,
                   }}
                 />
               </div>

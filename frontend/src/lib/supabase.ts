@@ -717,7 +717,7 @@ export const priceDropAlertsService = {
       .select('*')
       .eq('user_id', user?.id)
       .eq('pg_id', pgId)
-      .single()
+      .maybeSingle()
 
     return data
   },
