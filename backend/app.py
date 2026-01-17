@@ -176,7 +176,25 @@ Return ONLY a valid JSON object:
         if result_text.endswith('```'):
             result_text = result_text[:-3]
         
-        result = json.loads(result_text.strip())
+        result_text = result_text.strip()
+        
+        # Try to extract valid JSON even if there's extra text
+        try:
+            result = json.loads(result_text)
+        except json.JSONDecodeError as e:
+            # If parsing fails, try to extract the JSON object
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', result_text)
+            if json_match:
+                try:
+                    result = json.loads(json_match.group())
+                except:
+                    print(f"Failed to parse extracted JSON: {json_match.group()[:200]}")
+                    raise e
+            else:
+                print(f"No JSON found in response: {result_text[:200]}")
+                raise e
+        
         return jsonify(result)
         
     except Exception as e:
