@@ -880,7 +880,10 @@ const PGDetail = () => {
                         amenities: pgData.amenities || [],
                         rules: typeof pgData.rules === 'object' 
                           ? (pgData.rules.customRules || '') 
-                          : (pgData.rules || '')
+                          : (pgData.rules || ''),
+                        maintenanceCharges: pgData.maintenance_charges,
+                        electricityCharges: pgData.electricity_charges,
+                        foodIncluded: pgData.food_included,
                       }}
                     />
                   </CardContent>

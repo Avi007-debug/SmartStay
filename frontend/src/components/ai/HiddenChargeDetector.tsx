@@ -11,6 +11,9 @@ interface HiddenChargeDetectorProps {
     deposit?: number;
     amenities?: string[];
     rules?: string | object;
+    maintenanceCharges?: number | string;
+    electricityCharges?: string;
+    foodIncluded?: boolean;
   };
   className?: string;
 }
@@ -103,7 +106,7 @@ export const HiddenChargeDetector = ({
     };
 
     detectCharges();
-  }, [pgData.description, pgData.rent, pgData.deposit, pgData.amenities, pgData.rules]);
+  }, [pgData.description, pgData.rent, pgData.deposit, pgData.amenities, pgData.rules, pgData.maintenanceCharges, pgData.electricityCharges, pgData.foodIncluded]);
 
   if (loading) {
     return (
@@ -144,6 +147,53 @@ export const HiddenChargeDetector = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* PG Details Being Analyzed */}
+        <div className="p-3 bg-muted/50 rounded-lg border border-border/50">
+          <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+            <Info className="h-4 w-4 text-muted-foreground" />
+            Analyzed Details
+          </h4>
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            <div>
+              <span className="font-medium">Rent:</span> ₹{pgData.rent?.toLocaleString() || 'N/A'}
+            </div>
+            <div>
+              <span className="font-medium">Deposit:</span> ₹{pgData.deposit?.toLocaleString() || 'N/A'}
+            </div>
+            <div>
+              <span className="font-medium">Maintenance:</span> {
+                pgData.maintenanceCharges && pgData.maintenanceCharges !== '0' 
+                  ? `₹${Number(pgData.maintenanceCharges).toLocaleString()}` 
+                  : 'Not specified'
+              }
+            </div>
+            <div>
+              <span className="font-medium">Electricity:</span> {
+                pgData.electricityCharges && pgData.electricityCharges.trim() 
+                  ? pgData.electricityCharges 
+                  : 'Not specified'
+              }
+            </div>
+            <div className="col-span-2">
+              <span className="font-medium">Food:</span> {
+                pgData.foodIncluded ? 'Included' : 'Not specified'
+              }
+            </div>
+            {pgData.amenities && pgData.amenities.length > 0 && (
+              <div className="col-span-2">
+                <span className="font-medium">Amenities:</span> {pgData.amenities.slice(0, 3).join(', ')}
+                {pgData.amenities.length > 3 && ` +${pgData.amenities.length - 3} more`}
+              </div>
+            )}
+            {pgData.description && (
+              <div className="col-span-2">
+                <span className="font-medium">Description:</span> {pgData.description.slice(0, 80)}
+                {pgData.description.length > 80 && '...'}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Transparency Score */}
         <div className="flex items-center justify-between p-3 bg-accent/5 rounded-lg">
           <span className="text-sm font-medium">Transparency Score</span>

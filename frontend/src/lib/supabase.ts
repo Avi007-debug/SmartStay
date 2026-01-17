@@ -724,10 +724,11 @@ export const priceDropAlertsService = {
 
     if (!user) return null;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('price_drop_alerts')
       .select('*')
       .eq('user_id', user.id)
+      .maybeSingle()
       .eq('pg_id', pgId)
       .maybeSingle()
 
