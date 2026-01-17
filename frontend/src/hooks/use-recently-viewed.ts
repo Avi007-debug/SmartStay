@@ -2,6 +2,18 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { API_CONFIG } from '@/lib/api-config';
 
+export interface RecentlyViewedPG {
+  id: string;
+  name: string;
+  city: string;
+  rent: number;
+  image?: string;
+  viewedAt: number;
+}
+
+const MAX_RECENT_ITEMS = 10;
+const STORAGE_KEY = 'smartstay_recently_viewed';
+
 export const useRecentlyViewed = () => {
   const addToRecentlyViewed = async (pg: Omit<RecentlyViewedPG, 'viewedAt'>) => {
     try {

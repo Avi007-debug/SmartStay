@@ -18,11 +18,12 @@ app = Flask(__name__)
 allowed_origins = [
     "http://localhost:8080",
     "http://localhost:5173",
+    "https://smartstay-ruddy.vercel.app",
     os.getenv("FRONTEND_URL", "")
 ]
 # Filter out empty strings
 allowed_origins = [origin for origin in allowed_origins if origin]
-CORS(app, origins=allowed_origins)
+CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # ============================================
 # AI ENDPOINTS
