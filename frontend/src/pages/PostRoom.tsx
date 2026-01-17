@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { pgService, storageService } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { API_CONFIG } from "@/lib/api-config";
+import axios from "axios";
 
 const PostRoom = () => {
   const navigate = useNavigate();
@@ -149,6 +151,45 @@ const PostRoom = () => {
       newImages.splice(index, 1);
       return newImages;
     });
+  };
+
+  const generateDescription = async () => {
+    if (!formData.amenities.length || !formData.rent) {
+      toast({
+        title: "Missing Information",
+        description: "Please add amenities and rent first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setGeneratingDescription(true);
+      const response = await axios.post(`${API_CONFIG.BACKEND_URL}/api/ai/generate-description`, {
+        name: formData.name,
+        gender: formData.gender,
+        room_type: formData.roomType,
+        city: formData.city,
+        rent: parseInt(formData.rent),
+        amenities: formData.amenities,
+        rules: formData.rules,
+      });
+
+      setFormData(prev => ({ ...prev, description: response.data.description }));
+      toast({
+        title: "Success!",
+        description: "AI description generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating description:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate description. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingDescription(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
