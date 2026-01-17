@@ -175,58 +175,65 @@ House Rules & Terms:
 {rules if rules else 'No rules specified'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SCORING GUIDELINES - BE FAIR AND REASONABLE:
+⚠️ CRITICAL INSTRUCTIONS - READ THE DATA ABOVE FIRST! ⚠️
 
-START WITH BASE SCORE:
-- Has rent and deposit clearly stated: +40 points (baseline)
-- Has amenities list with 3+ items: +15 points
-- Has detailed description (50+ words): +15 points  
-- Has rules/terms specified: +10 points
+STEP 1: CHECK WHAT IS ACTUALLY SPECIFIED
+Look at the three fields marked with ** above:
+✓ If MAINTENANCE CHARGES shows "₹[amount]/month" or a number → IT IS SPECIFIED
+✓ If ELECTRICITY CHARGES shows a number or rate (like "200" or "₹5/unit") → IT IS SPECIFIED  
+✓ If FOOD AVAILABILITY says "Yes" or describes food → IT IS SPECIFIED
+✗ ONLY if it says "Not specified" → THEN it is missing
 
-DEDUCT FOR MISSING CRITICAL INFORMATION:
-- No mention of electricity (included/extra): -5 to -10 points
-- No mention of maintenance: -5 to -10 points
-- No mention of food availability: -3 to -7 points (less critical)
-- No mention of parking: -3 to -5 points (less critical)
-- Vague or ambiguous cost terms: -5 to -10 points
+STEP 2: CALCULATE TRANSPARENCY SCORE
 
-FINAL SCORE RANGES:
-- 80-100: Excellent - All major costs clearly stated, minimal unknowns
-- 60-79: Good - Most information clear, minor details missing
-- 40-59: Fair - Basic info provided but several items unclear
-- 20-39: Poor - Many important details missing
-- 0-19: Very Poor - Minimal information, high risk
+BASE: 40 points (rent + deposit provided)
 
-IMPORTANT ANALYSIS RULES:
-1. If an amenity is LISTED (e.g., "Wi-Fi" in amenities), assume it's INCLUDED unless stated otherwise
-2. Common amenities like Wi-Fi, Hot Water, TV typically mean they're provided - don't flag as hidden
-3. Only flag as "hidden charge" if there's reason to believe it costs extra but isn't mentioned
-4. Give CREDIT for what IS provided - don't just focus on what's missing
-5. A listing with clear rent, deposit, and good amenities list should score AT LEAST 60/100
+ADD points for SPECIFIED information:
++ Maintenance IS specified (has ₹ or number): +15 points
++ Electricity IS specified (has number/rate): +15 points
++ Food IS specified (says Yes or details): +10 points
++ Amenities list with 3+ items: +10 points
++ Description 50+ words: +5 points
++ Rules specified: +5 points
 
-CRITICAL - READ CAREFULLY:
-Look at the MAINTENANCE CHARGES, ELECTRICITY CHARGES, and FOOD AVAILABILITY fields above.
-- If it says "₹500/month" or any price → IT IS SPECIFIED, DO NOT flag it as missing or hidden
-- If it says "Yes, food is included" → IT IS SPECIFIED, DO NOT flag it as missing
-- If it says "As per usage" or "Fixed ₹200" → IT IS SPECIFIED, DO NOT flag it as missing
-- ONLY flag as missing if it literally says "Not specified"
+DEDUCT points for MISSING information:
+- Maintenance shows "Not specified": -10 points
+- Electricity shows "Not specified": -10 points
+- Food shows "Not specified": -5 points
+- No description or very short: -5 points
 
-Example: If you see "MAINTENANCE CHARGES: ₹500/month" above, DO NOT add "Maintenance Charges" to potential_hidden_charges or missing_information.
+SCORE RANGES:
+85-100: Excellent (all critical info provided)
+70-84: Very Good (most info clear)
+55-69: Good (basic transparency)
+40-54: Fair (missing some details)
+0-39: Poor (many details missing)
 
-Return ONLY valid JSON:
+STEP 3: LIST ONLY ACTUAL MISSING INFO
+
+For "potential_hidden_charges" and "missing_information":
+- ONLY include items that show "Not specified" in the data above
+- DO NOT flag maintenance if it shows "₹500/month" 
+- DO NOT flag electricity if it shows "200" or any value
+- DO NOT flag food if it says "Yes, food is included"
+
+EXAMPLE:
+Data shows: "MAINTENANCE CHARGES: ₹500/month"
+✓ Correct: Add +15 to score, do NOT add to potential_hidden_charges
+✗ Wrong: Add "Maintenance Charges" to potential_hidden_charges with reason "Not specified"
+
+Return ONLY valid JSON (no markdown, no text before/after):
 {{
   "risk_level": "low/medium/high",
   "potential_hidden_charges": [
-    {{"charge": "specific charge name", "reason": "why you believe this might be extra/hidden"}}
+    {{"charge": "name", "reason": "why hidden"}}
   ],
-  "missing_information": ["only truly missing cost details"],
-  "questions_to_ask": ["specific questions about legitimately unclear items"],
+  "missing_information": ["only items showing 'Not specified'"],
+  "questions_to_ask": ["questions about unclear items"],
   "transparency_score": <number 0-100>
 }}
 
-BE REASONABLE: If the listing has rent, deposit, amenities list, and a description, the score should be 60+ unless there are serious red flags.
-
-CRITICAL INSTRUCTION: Your response MUST be ONLY the JSON object above. NO explanations, NO markdown, NO extra text before or after. Start your response with {{ and end with }}. Do NOT write "Here's the analysis" or any other commentary."""
+START WITH {{ - NO OTHER TEXT!
         
         response_text = ai.generate(prompt, temperature=0)
         
