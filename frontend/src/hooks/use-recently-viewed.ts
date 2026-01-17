@@ -1,18 +1,6 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-
-export interface RecentlyViewedPG {
-  id: string;
-  name: string;
-  city: string;
-  rent: number;
-  image?: string;
-  viewedAt: number;
-}
-
-const MAX_RECENT_ITEMS = 10;
-const STORAGE_KEY = 'smartstay_recently_viewed';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from '@/lib/api-config';
 
 export const useRecentlyViewed = () => {
   const addToRecentlyViewed = async (pg: Omit<RecentlyViewedPG, 'viewedAt'>) => {
@@ -22,7 +10,7 @@ export const useRecentlyViewed = () => {
       
       if (user) {
         // If logged in, save to backend (Supabase)
-        await fetch(`${BACKEND_URL}/api/recently-viewed`, {
+        await fetch(`${API_CONFIG.BACKEND_URL}/api/recently-viewed`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

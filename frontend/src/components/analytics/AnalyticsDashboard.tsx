@@ -4,8 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Eye, MessageSquare, Heart, MousePointer, TrendingUp, Loader2 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from '@/lib/api-config';
 
 interface AnalyticsData {
   total_views: number;
@@ -41,7 +40,7 @@ export function AnalyticsDashboard({ ownerId }: { ownerId: string }) {
     try {
       setLoading(true);
       const response = await fetch(
-        `${BACKEND_URL}/api/analytics/dashboard?owner_id=${ownerId}&days=${timeRange}`
+        `${API_CONFIG.BACKEND_URL}/api/analytics/dashboard?owner_id=${ownerId}&days=${timeRange}`
       );
       if (response.ok) {
         const analyticsData = await response.json();

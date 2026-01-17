@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Flag, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from '@/lib/api-config';
 
 interface ContentReport {
   id: string;
@@ -45,7 +44,7 @@ export function ModerationPanel({ adminId }: { adminId: string }) {
         params.append('status', filterStatus);
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/reports?${params}`);
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/reports?${params}`);
       if (response.ok) {
         const data = await response.json();
         setReports(data);
@@ -67,7 +66,7 @@ export function ModerationPanel({ adminId }: { adminId: string }) {
 
     try {
       setSubmitting(true);
-      const response = await fetch(`${BACKEND_URL}/api/reports/${reviewingReport.id}/review`, {
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/reports/${reviewingReport.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

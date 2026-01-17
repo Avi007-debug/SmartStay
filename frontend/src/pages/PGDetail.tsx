@@ -49,13 +49,12 @@ import { useState, useEffect } from "react";
 import { pgService, reviewsService, storageService, savedPGsService, authService, qnaService, chatService } from "@/lib/supabase";
 import { Loader2, Edit, Trash2, Pencil } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from "@/lib/api-config";
 
 // Helper function to track analytics
 const trackMetric = async (pgId: string, metric: 'views' | 'inquiries' | 'saves' | 'clicks') => {
   try {
-    await fetch(`${BACKEND_URL}/api/analytics/increment`, {
+    await fetch(`${API_CONFIG.BACKEND_URL}/api/analytics/increment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pg_id: pgId, metric })

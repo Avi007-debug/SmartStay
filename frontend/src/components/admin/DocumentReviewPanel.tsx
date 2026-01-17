@@ -6,8 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { FileText, CheckCircle, XCircle, Loader2, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from '@/lib/api-config';
 
 interface VerificationDocument {
   id: string;
@@ -36,7 +35,7 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BACKEND_URL}/api/verification/documents?status=pending`);
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/verification/documents?status=pending`);
       if (response.ok) {
         const data = await response.json();
         setDocuments(data);
@@ -58,7 +57,7 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
 
     try {
       setSubmitting(true);
-      const response = await fetch(`${BACKEND_URL}/api/verification/documents/${reviewingDoc.id}/review`, {
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/verification/documents/${reviewingDoc.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

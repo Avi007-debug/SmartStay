@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { pgService, authService, supabase } from "@/lib/supabase";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { API_CONFIG } from "@/lib/api-config";
 
 interface Recommendation {
   pg_id: string;
@@ -54,7 +53,7 @@ export const PersonalizedRecommendations = () => {
       };
 
       // Call AI recommendations endpoint
-      const response = await axios.post(`${API_URL}/api/ai/personalized-recommendations`, {
+      const response = await axios.post(`${API_CONFIG.BACKEND_URL}/api/ai/personalized-recommendations`, {
         user_preferences: profile?.preferences || {
           budget: { min: 5000, max: 15000 },
           amenities: [],

@@ -2,8 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle, Info, Sparkles, Loader2, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from "@/lib/api-config";
 
 interface HiddenChargeDetectorProps {
   pgData: {
@@ -36,7 +35,7 @@ export const HiddenChargeDetector = ({
     const detectCharges = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${BACKEND_URL}/api/ai/hidden-charges`, {
+        const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/ai/hidden-charges`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pgData),

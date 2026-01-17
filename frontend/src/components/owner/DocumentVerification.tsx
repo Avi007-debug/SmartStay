@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Upload, FileText, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from '@/lib/api-config';
 
 interface VerificationDocument {
   id: string;
@@ -38,7 +37,7 @@ export function DocumentVerification({ ownerId }: { ownerId: string }) {
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BACKEND_URL}/api/verification/documents?owner_id=${ownerId}`);
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/verification/documents?owner_id=${ownerId}`);
       if (response.ok) {
         const data = await response.json();
         setDocuments(data);
@@ -99,7 +98,7 @@ export function DocumentVerification({ ownerId }: { ownerId: string }) {
         .getPublicUrl(filePath);
 
       // Create document record
-      const response = await fetch(`${BACKEND_URL}/api/verification/documents`, {
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/verification/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

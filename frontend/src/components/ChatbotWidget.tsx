@@ -6,8 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { API_CONFIG } from "@/lib/api-config";
 
 interface ChatMessage {
   id: number;
@@ -39,7 +38,7 @@ export const ChatbotWidget = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post(`${API_URL}/api/ai/chatbot`, {
+      const response = await axios.post(`${API_CONFIG.BACKEND_URL}/api/ai/chatbot`, {
         message: textToSend,
         chat_history: messages.map(m => ({ role: m.role, content: m.content })),
         context: {

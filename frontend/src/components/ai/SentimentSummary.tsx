@@ -3,8 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, ThumbsUp, ThumbsDown, TrendingUp, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from "@/lib/api-config";
 
 interface SentimentSummaryProps {
   reviews: any[];
@@ -42,7 +41,7 @@ export const SentimentSummary = ({
 
       try {
         setLoading(true);
-        const response = await fetch(`${BACKEND_URL}/api/ai/sentiment-analysis`, {
+        const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/ai/sentiment-analysis`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reviews, pg_name: pgName }),

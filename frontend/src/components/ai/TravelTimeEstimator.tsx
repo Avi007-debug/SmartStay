@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Clock, Car, Bike, PersonStanding, Train, Loader2 } from "lucide-react";
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_CONFIG } from "@/lib/api-config";
 
 interface TravelTimeEstimatorProps {
   pgLocation?: string;
@@ -39,7 +38,7 @@ export const TravelTimeEstimator = ({
       // Use PG location string for geocoding, or fallback to default
       const fromLocation = pgLocation || "Delhi, India";
       
-      const response = await fetch(`${BACKEND_URL}/api/ai/travel-time`, {
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/ai/travel-time`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
