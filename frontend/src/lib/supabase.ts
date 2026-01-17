@@ -505,7 +505,7 @@ export const chatService = {
       .eq('pg_id', pgId)
       .eq('user_id', user?.id)
       .eq('owner_id', ownerId)
-      .single()
+      .maybeSingle()
 
     if (existingChat) return existingChat
 
