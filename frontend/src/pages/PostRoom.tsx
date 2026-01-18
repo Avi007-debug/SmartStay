@@ -21,7 +21,7 @@ import {
   Upload, CheckCircle, AlertCircle, Image, MapPin, DollarSign, 
   Bed, Clock, Shield, Sparkles, Eye, Building2, Phone, Users, HelpCircle, X, Loader2
 } from "lucide-react";
-import { pgService, storageService } from "@/lib/supabase";
+import { pgService, storageService, authService } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG } from "@/lib/api-config";
 
@@ -66,10 +66,23 @@ const PostRoom = () => {
   const isEditMode = !!id;
 
   useEffect(() => {
+    checkAuthentication();
     if (id) {
       loadPGData();
     }
   }, [id]);
+
+  const checkAuthentication = async () => {
+    const user = await authService.getCurrentUser();
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to post or edit rooms",
+        variant: "destructive",
+      });
+      navigate('/auth');
+    }
+  };
 
   const loadPGData = async () => {
     if (!id) return;
