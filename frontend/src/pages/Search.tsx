@@ -30,6 +30,7 @@ const Search = () => {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<string>("match");
 
   const amenities = [
     { id: "wifi", label: "Wi-Fi", icon: Wifi },
@@ -104,6 +105,24 @@ const Search = () => {
         ? prev.filter(id => id !== amenityId)
         : [...prev, amenityId]
     );
+  };
+
+  const getSortedListings = () => {
+    const sorted = [...pgListings];
+    
+    switch (sortBy) {
+      case "price-low":
+        return sorted.sort((a, b) => (a.rent || 0) - (b.rent || 0));
+      case "price-high":
+        return sorted.sort((a, b) => (b.rent || 0) - (a.rent || 0));
+      case "rating":
+        return sorted.sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0));
+      case "distance":
+        return sorted.sort((a, b) => (a.distance_from_college || 999) - (b.distance_from_college || 999));
+      case "match":
+      default:
+        return sorted;
+    }
   };
 
   const FiltersContent = () => (
@@ -211,7 +230,10 @@ const Search = () => {
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Select><SelectTrigger className="w-full md:w-[200px] h-12"><SelectValue placeholder="Sort by" /></SelectTrigger>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-full md:w-[200px] h-12">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="match">Best Match</SelectItem>
                 <SelectItem value="price-low">Price: Low to High</SelectItem>
@@ -286,7 +308,7 @@ const Search = () => {
                   </CardContent>
                 </Card>
               ) : (
-                pgListings.map((pg) => (
+                getSortedListings().map((pg) => (
                 <Card key={pg.id} className={`overflow-hidden hover-lift border-2 transition-all ${pg.is_available ? 'hover:border-primary' : 'opacity-75'}`}>
                   <div className="flex flex-col md:flex-row">
                     {/* Fixed-size image container: 240px × 180px */}

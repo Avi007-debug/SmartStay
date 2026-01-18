@@ -467,18 +467,33 @@ CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews
 -- ============================================
 CREATE OR REPLACE FUNCTION update_pg_rating()
 RETURNS TRIGGER AS $$
+DECLARE
+  target_pg_id UUID;
 BEGIN
+  -- Determine which PG to update
+  IF TG_OP = 'DELETE' THEN
+    target_pg_id := OLD.pg_id;
+  ELSE
+    target_pg_id := NEW.pg_id;
+  END IF;
+  
+  -- Update the pg_listing stats
   UPDATE pg_listings
   SET 
-    total_reviews = (SELECT COUNT(*) FROM reviews WHERE pg_id = NEW.pg_id),
-    average_rating = (SELECT AVG(rating)::NUMERIC(3,2) FROM reviews WHERE pg_id = NEW.pg_id)
-  WHERE id = NEW.pg_id;
+    total_reviews = (SELECT COUNT(*) FROM reviews WHERE pg_id = target_pg_id),
+    average_rating = COALESCE((SELECT AVG(rating)::NUMERIC(3,2) FROM reviews WHERE pg_id = target_pg_id), 0)
+  WHERE id = target_pg_id;
   
-  RETURN NEW;
+  -- Return appropriate row
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_pg_rating_on_review AFTER INSERT OR UPDATE ON reviews
+CREATE TRIGGER update_pg_rating_on_review AFTER INSERT OR UPDATE OR DELETE ON reviews
   FOR EACH ROW EXECUTE FUNCTION update_pg_rating();
 
 -- ============================================
