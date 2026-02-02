@@ -35,21 +35,39 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
 
   const getSignedUrl = async (filePath: string) => {
     try {
+      // Extract path from full URL if needed
+      let path = filePath;
+      if (filePath.includes('/storage/v1/object/')) {
+        // Extract path from URL like: https://.../storage/v1/object/public/verification-docs/verification/...
+        const parts = filePath.split('/verification-docs/');
+        path = parts.length > 1 ? parts[1] : filePath;
+      }
+      
       const { data, error } = await supabase.storage
         .from('verification-docs')
-        .createSignedUrl(filePath, 3600); // 1 hour expiry
+        .createSignedUrl(path, 3600); // 1 hour expiry
       
-      if (error) throw error;
+      if (error) {
+        console.error('Signed URL error:', error);
+        throw error;
+      }
       return data.signedUrl;
     } catch (error) {
       console.error('Error generating signed URL:', error);
-      return filePath; // Fallback to original path
+      toast({
+        title: 'Error',
+        description: 'Failed to load document. Please try again.',
+        variant: 'destructive',
+      });
+      return null;
     }
   };
 
   const handleViewDocument = async (filePath: string) => {
     const signedUrl = await getSignedUrl(filePath);
-    window.open(signedUrl, '_blank');
+    if (signedUrl) {
+      window.open(signedUrl, '_blank');
+    }
   };
 
   const loadDocuments = async () => {
