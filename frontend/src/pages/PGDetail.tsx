@@ -450,7 +450,7 @@ const PGDetail = () => {
     
     try {
       if (isSaved) {
-        await savedPGsService.remove(id);
+        await savedPGsService.unsave(id);
         setIsSaved(false);
         toast({
           title: "Removed from Saved",
