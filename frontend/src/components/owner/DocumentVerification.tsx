@@ -49,6 +49,25 @@ export function DocumentVerification({ ownerId }: { ownerId: string }) {
     }
   };
 
+  const getSignedUrl = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('verification-docs')
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Error generating signed URL:', error);
+      return filePath; // Fallback
+    }
+  };
+
+  const handleViewDocument = async (filePath: string) => {
+    const signedUrl = await getSignedUrl(filePath);
+    window.open(signedUrl, '_blank');
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -92,10 +111,9 @@ export function DocumentVerification({ ownerId }: { ownerId: string }) {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('verification-docs')
-        .getPublicUrl(filePath);
+      // Store file path instead of public URL (bucket is private)
+      // The path will be used to generate signed URLs when viewing
+      const fileUrl = filePath; // Store path, not URL
 
       // Create document record
       const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/verification/documents`, {
@@ -104,7 +122,7 @@ export function DocumentVerification({ ownerId }: { ownerId: string }) {
         body: JSON.stringify({
           owner_id: ownerId,
           document_type: documentType,
-          file_url: publicUrl,
+          file_url: fileUrl,
           file_name: selectedFile.name,
         }),
       });
@@ -237,7 +255,7 @@ export function DocumentVerification({ ownerId }: { ownerId: string }) {
                     <div>
                       <p className="font-medium">
                         {doc.document_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </p>
+                      </p>handleViewDocument(doc.file_url
                       <p className="text-sm text-muted-foreground">{doc.file_name}</p>
                       <p className="text-xs text-muted-foreground">
                         Uploaded: {new Date(doc.created_at).toLocaleDateString()}

@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { FileText, CheckCircle, XCircle, Loader2, ExternalLink } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { API_CONFIG } from '@/lib/api-config';
+import { supabase } from '@/lib/supabase';
 
 interface VerificationDocument {
   id: string;
@@ -31,6 +32,25 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  const getSignedUrl = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('verification-docs')
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Error generating signed URL:', error);
+      return filePath; // Fallback to original path
+    }
+  };
+
+  const handleViewDocument = async (filePath: string) => {
+    const signedUrl = await getSignedUrl(filePath);
+    window.open(signedUrl, '_blank');
+  };
 
   const loadDocuments = async () => {
     try {
@@ -130,7 +150,7 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
                     <Button
                       variant="link"
                       className="p-0 h-auto"
-                      onClick={() => window.open(doc.file_url, '_blank')}
+                      onClick={() => handleViewDocument(doc.file_url)}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       View Document
@@ -150,6 +170,9 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Review Document</DialogTitle>
+                        <DialogDescription>
+                          Review the uploaded verification document and approve or reject it.
+                        </DialogDescription>
                       </DialogHeader>
 
                       <div className="space-y-4">
@@ -170,7 +193,7 @@ export function DocumentReviewPanel({ adminId }: { adminId: string }) {
                           <Button
                             variant="link"
                             className="p-0 h-auto"
-                            onClick={() => window.open(doc.file_url, '_blank')}
+                            onClick={() => handleViewDocument(doc.file_url)}
                           >
                             <ExternalLink className="h-4 w-4 mr-2" />
                             {doc.file_name}
