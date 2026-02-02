@@ -25,6 +25,28 @@ allowed_origins = [
 allowed_origins = [origin for origin in allowed_origins if origin]
 CORS(app, origins=allowed_origins, supports_credentials=True)
 
+
+# Ensure CORS headers are present even on errors and for preflight requests
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    # Only echo back allowed origins to avoid exposing everything
+    if origin and origin in allowed_origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = (
+            'Content-Type,Authorization,Accept,Origin,User-Agent,Referer,Accept-Encoding'
+        )
+    return response
+
+
+# Fallback handler for OPTIONS preflight on any path under /api
+@app.route('/api/<path:unused>', methods=['OPTIONS'])
+def handle_options(unused):
+    # Return empty response; headers are added by add_cors_headers
+    return ('', 204)
+
 # ============================================
 # AI ENDPOINTS
 # ============================================
@@ -1508,7 +1530,14 @@ if __name__ == '__main__':
     else:
         print("⚠️  Warning: AI provider not configured. Set GROQ_API_KEY or GEMINI_API_KEY in .env")
     
+    # Log Supabase and CORS configuration
+    print(f"\n📊 Configuration Status:")
+    print(f"  SUPABASE_URL: {'✅ Set' if os.getenv('SUPABASE_URL') else '❌ Missing'}")
+    print(f"  SUPABASE_SERVICE_KEY: {'✅ Set' if os.getenv('SUPABASE_SERVICE_ROLE_KEY') else '❌ Missing'}")
+    print(f"  Allowed CORS Origins: {allowed_origins}")
+    
     # Use debug mode only in development
     port = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_ENV', 'development') == 'development'
+    print(f"\n🚀 Running on port {port} (debug={debug_mode})")
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
