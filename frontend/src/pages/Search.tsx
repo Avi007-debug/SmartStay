@@ -69,11 +69,11 @@ const Search = () => {
       }
 
       if (verifiedOnly) {
-        filters.isVerified = true;
+        filters.verified = true;
       }
 
       if (availableOnly) {
-        filters.isAvailable = true;
+        filters.available = true;
       }
 
       if (selectedAmenities.length > 0) {
