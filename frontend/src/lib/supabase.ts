@@ -91,6 +91,8 @@ export const pgService = {
     verified?: boolean
     available?: boolean
     maxDistance?: number
+    minCleanlinessRating?: number
+    strictnessLevel?: string
   }) {
     let query = supabase.from('pg_listings').select(`
       *,
@@ -98,7 +100,7 @@ export const pgService = {
     `).eq('status', 'active')
 
     if (filters?.city) {
-      query = query.eq('address->>city', filters.city)
+      query = query.ilike('address->>city', `%${filters.city}%`)
     }
     if (filters?.minRent) {
       query = query.gte('rent', filters.minRent)
@@ -117,6 +119,25 @@ export const pgService = {
     }
     if (filters?.maxDistance) {
       query = query.lte('distance_from_college', filters.maxDistance)
+    }
+    
+    // Filter by amenities - check if all selected amenities are present
+    if (filters?.amenities && filters.amenities.length > 0) {
+      query = query.contains('amenities', filters.amenities)
+    }
+    
+    // Filter by cleanliness rating
+    if (filters?.minCleanlinessRating) {
+      query = query.gte('cleanliness_level', filters.minCleanlinessRating)
+    }
+    
+    // Filter by strictness level
+    if (filters?.strictnessLevel) {
+      query = query.gte('strictness_level', 
+        filters.strictnessLevel === 'relaxed' ? 1 : 
+        filters.strictnessLevel === 'moderate' ? 3 : 
+        filters.strictnessLevel === 'strict' ? 4 : 1
+      )
     }
 
     const { data, error } = await query

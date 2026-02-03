@@ -31,17 +31,19 @@ const Search = () => {
   const [availableOnly, setAvailableOnly] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>("match");
+  const [cleanlinessRating, setCleanlinessRating] = useState<string>("any");
+  const [strictnessLevel, setStrictnessLevel] = useState<string>("any");
 
   const amenities = [
-    { id: "wifi", label: "Wi-Fi", icon: Wifi },
-    { id: "food", label: "Food Included", icon: UtensilsCrossed },
-    { id: "water", label: "Hot Water", icon: Droplets },
-    { id: "laundry", label: "Laundry", icon: Home },
+    { id: "Wi-Fi", label: "Wi-Fi", icon: Wifi },
+    { id: "Food", label: "Food Included", icon: UtensilsCrossed },
+    { id: "Hot Water", label: "Hot Water", icon: Droplets },
+    { id: "Laundry", label: "Laundry", icon: Home },
   ];
 
   useEffect(() => {
     loadPGListings();
-  }, [budget, selectedGender, verifiedOnly, availableOnly, selectedAmenities, searchCity]);
+  }, [budget, selectedGender, verifiedOnly, availableOnly, selectedAmenities, searchCity, maxDistance, cleanlinessRating, strictnessLevel]);
 
   const loadPGListings = async () => {
     try {
@@ -56,7 +58,14 @@ const Search = () => {
       }
 
       if (selectedGender !== "any") {
-        filters.gender = selectedGender;
+        // Map frontend values to database values
+        const genderMap: { [key: string]: string } = {
+          'male': 'boys',
+          'female': 'girls',
+          'boys': 'boys',
+          'girls': 'girls'
+        };
+        filters.gender = genderMap[selectedGender] || selectedGender;
       }
 
       if (verifiedOnly) {
@@ -69,6 +78,18 @@ const Search = () => {
 
       if (selectedAmenities.length > 0) {
         filters.amenities = selectedAmenities;
+      }
+
+      if (maxDistance[0] < 10) {
+        filters.maxDistance = maxDistance[0];
+      }
+
+      if (cleanlinessRating !== "any") {
+        filters.minCleanlinessRating = parseFloat(cleanlinessRating);
+      }
+
+      if (strictnessLevel !== "any") {
+        filters.strictnessLevel = strictnessLevel;
       }
 
       const data = await pgService.getAll(filters);
@@ -97,6 +118,8 @@ const Search = () => {
     setAvailableOnly(false);
     setSelectedAmenities([]);
     setSearchCity("");
+    setCleanlinessRating("any");
+    setStrictnessLevel("any");
   };
 
   const toggleAmenity = (amenityId: string) => {
@@ -163,7 +186,8 @@ const Search = () => {
 
       <div>
         <h3 className="font-semibold mb-3">Cleanliness Rating</h3>
-        <Select><SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+        <Select value={cleanlinessRating} onValueChange={setCleanlinessRating}>
+          <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="any">Any</SelectItem>
             <SelectItem value="4">4+ Stars</SelectItem>
@@ -174,7 +198,8 @@ const Search = () => {
 
       <div>
         <h3 className="font-semibold mb-3">Strictness / Curfew</h3>
-        <Select><SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+        <Select value={strictnessLevel} onValueChange={setStrictnessLevel}>
+          <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="any">Any</SelectItem>
             <SelectItem value="relaxed">Relaxed (No curfew)</SelectItem>
@@ -261,7 +286,7 @@ const Search = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Filters</h2>
-                  <Button variant="ghost" size="sm">Clear All</Button>
+                  <Button variant="ghost" size="sm" onClick={handleClearFilters}>Clear All</Button>
                 </div>
                 <FiltersContent />
               </CardContent>
