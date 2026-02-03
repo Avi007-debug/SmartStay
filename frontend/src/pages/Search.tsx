@@ -191,7 +191,7 @@ const Search = () => {
           <SelectContent>
             <SelectItem value="any">Any</SelectItem>
             <SelectItem value="4">4+ Stars</SelectItem>
-            <SelectItem value="4.5">4.5+ Stars</SelectItem>
+            <SelectItem value="5">5 Stars</SelectItem>
           </SelectContent>
         </Select>
       </div>

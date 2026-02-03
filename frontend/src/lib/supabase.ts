@@ -128,7 +128,7 @@ export const pgService = {
     
     // Filter by cleanliness rating
     if (filters?.minCleanlinessRating) {
-      query = query.gte('cleanliness_level', filters.minCleanlinessRating)
+      query = query.gte('cleanliness_level', Math.ceil(filters.minCleanlinessRating))
     }
     
     // Filter by strictness level
