@@ -92,7 +92,8 @@ const Search = () => {
         filters.strictnessLevel = strictnessLevel;
       }
 
-      const data = await pgService.getAll(filters);
+      // Fetch all listings, including inactive ones to show as 'Not Available'
+      const data = await pgService.getAll({ ...filters, status: null as any });
       setPgListings(data);
     } catch (error) {
       console.error('Error loading PG listings:', error);
@@ -334,7 +335,7 @@ const Search = () => {
                 </Card>
               ) : (
                 getSortedListings().map((pg) => (
-                <Card key={pg.id} className={`overflow-hidden hover-lift border-2 transition-all ${pg.is_available ? 'hover:border-primary' : 'opacity-75'}`}>
+                <Card key={pg.id} className={`overflow-hidden hover-lift border-2 transition-all ${(pg.is_available && pg.status === 'active') ? 'hover:border-primary' : 'opacity-75'}`}>
                   <div className="flex flex-col md:flex-row">
                     {/* Fixed-size image container: 240px × 180px */}
                     <div className="w-full md:w-60 h-45 md:h-45 bg-gray-100 relative shrink-0 overflow-hidden rounded-l-lg">
@@ -359,7 +360,13 @@ const Search = () => {
                       </div>
                       {pg.is_verified && <Badge className="absolute top-3 left-3 bg-success shadow-sm z-20"><Shield className="h-3 w-3 mr-1" />Verified</Badge>}
                       <Button variant="ghost" size="icon" className="absolute top-3 right-3 bg-white/90 hover:bg-white shadow-sm z-20"><Heart className="h-4 w-4" /></Button>
-                      {!pg.is_available && <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-30"><Badge variant="secondary">Currently Full</Badge></div>}
+                      {(pg.status !== 'active' || !pg.is_available) && (
+                        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-30">
+                          <Badge variant="secondary" className="bg-destructive/80 text-white">
+                            {pg.status !== 'active' ? 'Not Available' : 'Currently Full'}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex-1 p-5">

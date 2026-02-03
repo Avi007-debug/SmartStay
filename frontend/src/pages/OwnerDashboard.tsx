@@ -50,8 +50,8 @@ const OwnerDashboard = () => {
       setCurrentUser(user);
       
       if (user?.id) {
-        // Load owner's PG listings
-        const allPGs = await pgService.getAll();
+        // Load owner's PG listings (including inactive ones)
+        const allPGs = await pgService.getAll({ status: null as any });
         const ownerPGs = allPGs?.filter((pg: any) => pg.owner_id === user.id) || [];
         setListings(ownerPGs);
 

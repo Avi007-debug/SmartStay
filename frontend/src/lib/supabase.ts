@@ -93,11 +93,20 @@ export const pgService = {
     maxDistance?: number
     minCleanlinessRating?: number
     strictnessLevel?: string
+    status?: string
   }) {
     let query = supabase.from('pg_listings').select(`
       *,
       owner:profiles!owner_id(full_name, phone, is_verified)
-    `).eq('status', 'active')
+    `)
+    
+    // Filter by status - defaults to showing active only for search, but allows showing all for owner dashboard
+    if (filters?.status) {
+      query = query.eq('status', filters.status)
+    } else if (filters?.status !== null) {
+      // Default behavior: show active listings only when status filter is not explicitly set to null
+      query = query.eq('status', 'active')
+    }
 
     if (filters?.city) {
       query = query.ilike('address->>city', `%${filters.city}%`)
@@ -504,9 +513,8 @@ export const chatService = {
       .from('chats')
       .select(`
         *,
-        pg:pg_listings(name, id),
-        owner:profiles!owner_id(full_name),
-        user:profiles!user_id(full_name)
+        pg_listings:pg_listings(name, id),
+        profiles:profiles!owner_id(full_name)
       `)
       .or(`user_id.eq.${user?.id},owner_id.eq.${user?.id}`)
       .order('last_message_at', { ascending: false })
