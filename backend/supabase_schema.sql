@@ -522,9 +522,10 @@ CREATE POLICY "Profiles are viewable by everyone" ON profiles
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
--- PG Listings: Public read, owners can manage their own
+-- PG Listings: Public read (all listings), owners can manage their own
+-- Users can see all listings - active ones normally, inactive ones with "Not Available" badge
 CREATE POLICY "PG listings are viewable by everyone" ON pg_listings
-  FOR SELECT USING (status = 'active' OR owner_id = auth.uid());
+  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Owners can insert listings" ON pg_listings;
 

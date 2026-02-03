@@ -129,7 +129,8 @@ export const pgService = {
       query = query.eq('is_verified', true)
     }
     if (filters?.available) {
-      query = query.eq('is_available', true).gt('available_beds', 0)
+      // Filter for available listings: status must be active AND has available beds
+      query = query.eq('status', 'active').eq('is_available', true).gt('available_beds', 0)
     }
     if (filters?.maxDistance) {
       query = query.lte('distance_from_college', filters.maxDistance)
