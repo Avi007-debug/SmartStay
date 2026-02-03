@@ -101,10 +101,15 @@ export const pgService = {
     `)
     
     // Filter by status - defaults to showing active only for search, but allows showing all for owner dashboard
-    if (filters?.status) {
-      query = query.eq('status', filters.status)
-    } else if (filters?.status !== null) {
-      // Default behavior: show active listings only when status filter is not explicitly set to null
+    if (filters && 'status' in filters) {
+      // status property exists in filters
+      if (filters.status !== null) {
+        // If status is set to a specific value, filter by it
+        query = query.eq('status', filters.status)
+      }
+      // If status is null, don't filter by status (show all)
+    } else {
+      // status property doesn't exist, default to showing only active
       query = query.eq('status', 'active')
     }
 
