@@ -1315,9 +1315,10 @@ const PGDetail = () => {
                           // If owner entered a plain phone number, open wa.me
                           if (/^[0-9+ ]+$/.test(link)) {
                             const cleanPhone = link.replace(/[^0-9]/g, '');
-                            link = https://wa.me/;
+                            const fullPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                            link = 'https://wa.me/' + fullPhone;
                           } else if (!/^https?:\/\//i.test(link)) {
-                            link = https://;
+                            link = 'https://' + link;
                           }
                           window.open(link, '_blank', 'noopener,noreferrer');
                         }}
