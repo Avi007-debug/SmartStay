@@ -882,10 +882,11 @@ def add_recently_viewed():
             return jsonify({"error": "user_id and pg_id are required"}), 400
         
         SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_ANON_KEY')
         
         if not SUPABASE_URL or not SUPABASE_KEY:
-            return jsonify({"error": "Supabase not configured"}), 500
+            # Graceful response so frontend hook doesn't throw 500
+            return jsonify({"success": False, "message": "Supabase credentials not configured on backend"}), 200
         
         # Upsert into recently_viewed (will update viewed_at if exists)
         headers = {

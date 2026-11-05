@@ -334,7 +334,14 @@ const Search = () => {
                       </div>
                       {pg.is_verified && <Badge className="absolute top-3 left-3 bg-success shadow-sm z-20"><Shield className="h-3 w-3 mr-1" />Verified</Badge>}
                       <Button variant="ghost" size="icon" className="absolute top-3 right-3 bg-white/90 hover:bg-white shadow-sm z-20"><Heart className="h-4 w-4" /></Button>
-                      {!pg.is_available && <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-30"><Badge variant="secondary">Currently Full</Badge></div>}
+                      {(!pg.is_available || pg.available_beds <= 0 || pg.status === 'inactive') && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center z-30 gap-1.5 p-2">
+                          <Badge variant="destructive" className="text-xs font-bold uppercase tracking-wider shadow-lg bg-red-600 text-white border-0 px-3 py-1">
+                            Not Available
+                          </Badge>
+                          <span className="text-[11px] font-medium text-white/90 drop-shadow">Currently Full</span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex-1 p-5">
