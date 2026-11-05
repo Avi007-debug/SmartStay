@@ -1,4 +1,4 @@
-﻿import { Navbar } from "@/components/layout/Navbar";
+import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ArrowLeft,
   Bell,
   ExternalLink,
   AlertCircle,
@@ -53,6 +54,7 @@ import { useState, useEffect } from "react";
 import { pgService, reviewsService, storageService, savedPGsService, authService, qnaService, chatService } from "@/lib/supabase";
 import { Loader2, Edit, Trash2, Pencil } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
+import { isAiGeneratedDescription } from "@/lib/utils";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -566,6 +568,25 @@ const PGDetail = () => {
       <Navbar />
       
       <div className="container mx-auto px-4 py-8 flex-1">
+        {/* Back Navigation Button */}
+        <div className="mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/search');
+              }
+            }}
+            className="gap-2 text-muted-foreground hover:text-foreground -ml-2 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to listings
+          </Button>
+        </div>
+
         {/* Image Gallery */}
         <div className="mb-8">
           <div className="relative aspect-video bg-muted rounded-2xl overflow-hidden mb-4">
@@ -734,7 +755,7 @@ const PGDetail = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-lg">About This PG</h3>
-                      {(pgData?.rules?.is_ai_generated || pgData?.is_ai_generated) && (
+                      {isAiGeneratedDescription(pgData) && (
                         <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary border-primary/20">
                           <Sparkles className="h-3 w-3 text-primary" />
                           AI Generated Description

@@ -86,7 +86,7 @@ export const VacancyAlertSettings = ({ className }: VacancyAlertSettingsProps) =
             <Slider
               value={budget}
               onValueChange={setBudget}
-              min={2000}
+              min={0}
               max={25000}
               step={500}
               className="mb-2"

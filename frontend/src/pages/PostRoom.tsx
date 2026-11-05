@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { pgService, storageService, authService } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { isAiGeneratedDescription } from "@/lib/utils";
 import axios from "axios";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -119,7 +120,7 @@ const PostRoom = () => {
           strictnessLevel: [pg.strictness_level || 3],
           whatsappGroup: pg.whatsapp_group_link || "",
           description: pg.description || "",
-          isAiGenerated: typeof pg.rules === "object" ? !!pg.rules?.is_ai_generated : false,
+          isAiGenerated: isAiGeneratedDescription(pg),
           foodIncluded: pg.amenities?.includes("Food Included") || false,
           maintenanceCharges: pg.maintenance_charges?.toString() || "",
           electricityCharges: pg.electricity_charges || "",
@@ -274,7 +275,11 @@ const PostRoom = () => {
         return true;
 
       case 3:
-        if (!formData.rent || parseInt(formData.rent) <= 0) {
+        const rentVal = parseInt(formData.rent);
+        const depVal = parseInt(formData.deposit);
+        const bedsVal = parseInt(formData.availableBeds);
+
+        if (!formData.rent || isNaN(rentVal) || rentVal <= 0) {
           toast({
             title: "Monthly Rent Required",
             description: "Please enter a valid monthly rent amount",
@@ -282,7 +287,15 @@ const PostRoom = () => {
           });
           return false;
         }
-        if (!formData.deposit || parseInt(formData.deposit) < 0) {
+        if (rentVal < 1000 || rentVal > 100000) {
+          toast({
+            title: "Invalid Rent Amount",
+            description: "Monthly rent must be between ₹1,000 and ₹1,00,000",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.deposit || isNaN(depVal) || depVal < 0) {
           toast({
             title: "Security Deposit Required",
             description: "Please enter the security deposit amount",
@@ -290,10 +303,26 @@ const PostRoom = () => {
           });
           return false;
         }
-        if (!formData.availableBeds || parseInt(formData.availableBeds) < 1) {
+        if (depVal > rentVal * 12) {
+          toast({
+            title: "Invalid Security Deposit",
+            description: "Security deposit cannot exceed 12 months of rent",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.availableBeds || isNaN(bedsVal) || bedsVal < 1) {
           toast({
             title: "Available Beds Required",
             description: "Please enter at least 1 available bed",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (bedsVal > 50) {
+          toast({
+            title: "Invalid Beds Count",
+            description: "Available beds must be between 1 and 50",
             variant: "destructive",
           });
           return false;
@@ -313,6 +342,17 @@ const PostRoom = () => {
           toast({
             title: "Too Many Photos",
             description: "Maximum 10 photos allowed. Please remove extra photos.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      case 5:
+        if (!formData.amenities || formData.amenities.length === 0) {
+          toast({
+            title: "Select Amenities",
+            description: "Please select at least 1 amenity for your property",
             variant: "destructive",
           });
           return false;
