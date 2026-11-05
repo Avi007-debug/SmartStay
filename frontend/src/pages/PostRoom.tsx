@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
+import { LocationPickerMap } from "@/components/LocationPickerMap";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,8 @@ const PostRoom = () => {
     foodIncluded: false,
     maintenanceCharges: "",
     electricityCharges: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
 
   const totalSteps = 5;
@@ -118,6 +121,8 @@ const PostRoom = () => {
           foodIncluded: pg.amenities?.includes("Food Included") || false,
           maintenanceCharges: pg.maintenance_charges?.toString() || "",
           electricityCharges: pg.electricity_charges || "",
+          latitude: pg.latitude ? Number(pg.latitude) : null,
+          longitude: pg.longitude ? Number(pg.longitude) : null,
         });
 
         // Load existing images as preview URLs
@@ -364,6 +369,8 @@ const PostRoom = () => {
         strictness_level: formData.strictnessLevel[0],
         distance_from_college: formData.distance ? parseFloat(formData.distance) : null,
         nearest_college: formData.college || null,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         is_available: parseInt(formData.availableBeds) > 0,
         status: 'active',
       };
@@ -584,6 +591,15 @@ const PostRoom = () => {
                         required
                       />
                     </div>
+                  </div>
+
+                  {/* Interactive Map Picker & GPS locator */}
+                  <div className="pt-2">
+                    <LocationPickerMap 
+                      latitude={formData.latitude}
+                      longitude={formData.longitude}
+                      onChange={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
