@@ -13,7 +13,43 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:8080", "http://localhost:5173"])
+
+# Configure CORS for both local development and production deployment
+allowed_origins = [
+    "http://localhost:8080",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://smartstay-ruddy.vercel.app",
+    os.getenv("FRONTEND_URL", "")
+]
+allowed_origins = [origin for origin in allowed_origins if origin]
+CORS(app, origins=allowed_origins, supports_credentials=True)
+
+# Ensure CORS headers are present even on errors and for preflight requests
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    if origin and origin in allowed_origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = (
+            'Content-Type,Authorization,Accept,Origin,User-Agent,Referer,Accept-Encoding'
+        )
+    return response
+
+# Fallback handler for OPTIONS preflight on any path under /api
+@app.route('/api/<path:unused>', methods=['OPTIONS'])
+def handle_options(unused):
+    return ('', 204)
+
+@app.route("/")
+def home():
+    return "SmartStay backend is running"
+
+@app.route("/api/health")
+def health():
+    return {"status": "ok"}
 
 # ============================================
 # AI ENDPOINTS

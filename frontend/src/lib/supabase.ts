@@ -1,4 +1,4 @@
-// Supabase Client Configuration
+﻿// Supabase Client Configuration
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -8,7 +8,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey,
+    },
+  },
+})
 
 // ============================================
 // AUTHENTICATION SERVICE
@@ -81,14 +91,30 @@ export const pgService = {
     verified?: boolean
     available?: boolean
     maxDistance?: number
+    minCleanlinessRating?: number
+    strictnessLevel?: string
+    status?: string
   }) {
     let query = supabase.from('pg_listings').select(`
       *,
       owner:profiles!owner_id(full_name, phone, is_verified)
-    `).eq('status', 'active')
+    `)
+    
+    // Filter by status - defaults to showing active only for search, but allows showing all for owner dashboard
+    if (filters && 'status' in filters) {
+      // status property exists in filters
+      if (filters.status !== null) {
+        // If status is set to a specific value, filter by it
+        query = query.eq('status', filters.status)
+      }
+      // If status is null, don't filter by status (show all)
+    } else {
+      // status property doesn't exist, default to showing only active
+      query = query.eq('status', 'active')
+    }
 
     if (filters?.city) {
-      query = query.eq('address->>city', filters.city)
+      query = query.ilike('address->>city', `%${filters.city}%`)
     }
     if (filters?.minRent) {
       query = query.gte('rent', filters.minRent)
@@ -103,10 +129,30 @@ export const pgService = {
       query = query.eq('is_verified', true)
     }
     if (filters?.available) {
-      query = query.eq('is_available', true).gt('available_beds', 0)
+      // Filter for available listings: status must be active AND has available beds
+      query = query.eq('status', 'active').eq('is_available', true).gt('available_beds', 0)
     }
     if (filters?.maxDistance) {
       query = query.lte('distance_from_college', filters.maxDistance)
+    }
+    
+    // Filter by amenities - check if all selected amenities are present
+    if (filters?.amenities && filters.amenities.length > 0) {
+      query = query.contains('amenities', filters.amenities)
+    }
+    
+    // Filter by cleanliness rating
+    if (filters?.minCleanlinessRating) {
+      query = query.gte('cleanliness_level', Math.ceil(filters.minCleanlinessRating))
+    }
+    
+    // Filter by strictness level
+    if (filters?.strictnessLevel) {
+      query = query.gte('strictness_level', 
+        filters.strictnessLevel === 'relaxed' ? 1 : 
+        filters.strictnessLevel === 'moderate' ? 3 : 
+        filters.strictnessLevel === 'strict' ? 4 : 1
+      )
     }
 
     const { data, error } = await query
@@ -473,9 +519,8 @@ export const chatService = {
       .from('chats')
       .select(`
         *,
-        pg:pg_listings(name, id),
-        owner:profiles!owner_id(full_name),
-        user:profiles!user_id(full_name)
+        pg_listings:pg_listings(name, id),
+        profiles:profiles!owner_id(full_name)
       `)
       .or(`user_id.eq.${user?.id},owner_id.eq.${user?.id}`)
       .order('last_message_at', { ascending: false })
@@ -495,7 +540,7 @@ export const chatService = {
       .eq('pg_id', pgId)
       .eq('user_id', user?.id)
       .eq('owner_id', ownerId)
-      .single()
+      .maybeSingle()
 
     if (existingChat) return existingChat
 
@@ -712,13 +757,20 @@ export const priceDropAlertsService = {
   async getByPGId(pgId: string) {
     const { data: { user } } = await supabase.auth.getUser()
 
+    if (!user) return null;
+
     const { data } = await supabase
       .from('price_drop_alerts')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
       .eq('pg_id', pgId)
       .maybeSingle()
 
+    if (error) {
+      console.error('Error fetching price drop alert:', error);
+      return null;
+    }
     return data
   },
 
