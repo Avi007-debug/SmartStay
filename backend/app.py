@@ -575,15 +575,27 @@ def personalized_recommendations():
         # Limit to top 50 PGs to avoid token limits
         pgs_sample = available_pgs[:50]
         
-        # Format PG data for AI
-        pgs_text = "\n".join([
-            f"- PG #{pg.get('id')}: {pg.get('name')} | Rent: ₹{pg.get('rent')} | "
-            f"Amenities: {', '.join(pg.get('amenities', [])[:5])} | "
-            f"Location: {pg.get('address', {}).get('area', 'N/A')} | "
-            f"Rating: {pg.get('average_rating', 0)}/5"
-            for pg in pgs_sample
-        ])
-        
+        # Format PG data for AI safely
+        formatted_list = []
+        for pg in pgs_sample:
+            addr = pg.get('address')
+            area = "N/A"
+            if isinstance(addr, dict):
+                area = addr.get('area') or addr.get('city') or 'N/A'
+            elif isinstance(addr, str):
+                area = addr.split(',')[0]
+            
+            amenities = pg.get('amenities') or []
+            if not isinstance(amenities, list):
+                amenities = []
+                
+            formatted_list.append(
+                f"- PG #{pg.get('id')}: {pg.get('name')} | Rent: Rs.{pg.get('rent')} | "
+                f"Amenities: {', '.join(amenities[:5])} | "
+                f"Location: {area} | "
+                f"Rating: {pg.get('average_rating', 0)}/5"
+            )
+        pgs_text = "\n".join(formatted_list)
         recently_viewed = user_history.get('recently_viewed', [])[:5]
         saved_pgs = user_history.get('saved_pgs', [])[:5]
         
