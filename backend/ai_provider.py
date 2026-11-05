@@ -6,7 +6,7 @@ load_dotenv()
 
 
 class AIProvider:
-    """Groq-only AI adapter. Default model is `llama-3.1-8b-instant`.
+    """Groq-only AI adapter. Default model is `openai/gpt-oss-120b`.
 
     Uses the Groq SDK with chat.completions.create() API.
     """
@@ -14,7 +14,9 @@ class AIProvider:
     def __init__(self):
         self.provider = 'groq'
         self.client = None
-        self.model_name = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
+        # Better reasoning: 'openai/gpt-oss-120b' (Default)
+        # Faster, lighter alternative: 'openai/gpt-oss-20b'
+        self.model_name = os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')
 
         try:
             import groq
