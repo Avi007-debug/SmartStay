@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { pgService, authService, supabase } from "@/lib/supabase";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
 interface Recommendation {
   pg_id: string;
