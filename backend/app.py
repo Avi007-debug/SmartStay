@@ -457,7 +457,12 @@ def estimate_travel_time():
                             features = res_json.get('features', [])
                             if features:
                                 coords = features[0]['geometry']['coordinates']
-                                return {'lng': coords[0], 'lat': coords[1]}
+                                # Guard against out-of-state hops: ensure coords are in Karnataka/Bangalore vicinity (~11-15 lat, ~74-79 lng)
+                                if 11.5 <= coords[1] <= 14.5 and 76.0 <= coords[0] <= 78.5:
+                                    print(f"Geocoded {label} verified in Bangalore vicinity: {coords}")
+                                    return {'lng': coords[0], 'lat': coords[1]}
+                                else:
+                                    print(f"Geocoded {label} rejected (out of Bangalore region): {coords}")
                     except Exception as err:
                         print(f"Geocoding error for {label} query '{query}': {err}")
                         continue

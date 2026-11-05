@@ -920,6 +920,11 @@ const PGDetail = () => {
                             ? pgData.address 
                             : (pgData.address?.street || pgData.address?.full || `${pgData.city}, ${pgData.state}`)
                         } 
+                        pgCoordinates={
+                          pgData.latitude && pgData.longitude 
+                            ? { lat: Number(pgData.latitude), lng: Number(pgData.longitude) } 
+                            : undefined
+                        }
                       />
                     )}
                     {!pgData && <p className="text-muted-foreground">Loading...</p>}
