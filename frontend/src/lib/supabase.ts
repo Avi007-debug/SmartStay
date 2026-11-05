@@ -100,17 +100,9 @@ export const pgService = {
       owner:profiles!owner_id(full_name, phone, is_verified)
     `)
     
-    // Filter by status - defaults to showing active only for search, but allows showing all for owner dashboard
-    if (filters && 'status' in filters) {
-      // status property exists in filters
-      if (filters.status !== null) {
-        // If status is set to a specific value, filter by it
-        query = query.eq('status', filters.status)
-      }
-      // If status is null, don't filter by status (show all)
-    } else {
-      // status property doesn't exist, default to showing only active
-      query = query.eq('status', 'active')
+    // Allow seeing all statuses (active and inactive) so unavailable PGs show with badge
+    if (filters && 'status' in filters && filters.status !== null) {
+      query = query.eq('status', filters.status)
     }
 
     if (filters?.city) {
@@ -125,12 +117,13 @@ export const pgService = {
     if (filters?.gender) {
       query = query.eq('gender', filters.gender)
     }
-    if (filters?.verified) {
+    const isVerified = (filters as any)?.isVerified ?? filters?.verified;
+    if (isVerified) {
       query = query.eq('is_verified', true)
     }
-    if (filters?.available) {
-      // Filter for available listings: status must be active AND has available beds
-      query = query.eq('status', 'active').eq('is_available', true).gt('available_beds', 0)
+    const isAvailable = (filters as any)?.isAvailable ?? filters?.available;
+    if (isAvailable) {
+      query = query.eq('is_available', true).gt('available_beds', 0)
     }
     if (filters?.maxDistance) {
       query = query.lte('distance_from_college', filters.maxDistance)
