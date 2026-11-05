@@ -59,6 +59,7 @@ const PostRoom = () => {
     strictnessLevel: [3],
     whatsappGroup: "",
     description: "",
+    isAiGenerated: false,
     foodIncluded: false,
     maintenanceCharges: "",
     electricityCharges: "",
@@ -118,6 +119,7 @@ const PostRoom = () => {
           strictnessLevel: [pg.strictness_level || 3],
           whatsappGroup: pg.whatsapp_group_link || "",
           description: pg.description || "",
+          isAiGenerated: typeof pg.rules === "object" ? !!pg.rules?.is_ai_generated : false,
           foodIncluded: pg.amenities?.includes("Food Included") || false,
           maintenanceCharges: pg.maintenance_charges?.toString() || "",
           electricityCharges: pg.electricity_charges || "",
@@ -206,7 +208,7 @@ const PostRoom = () => {
         rules: formData.rules,
       });
 
-      setFormData(prev => ({ ...prev, description: response.data.description }));
+      setFormData(prev => ({ ...prev, description: response.data.description, isAiGenerated: true }));
       toast({
         title: "Success!",
         description: "AI description generated successfully",
@@ -220,6 +222,105 @@ const PostRoom = () => {
       });
     } finally {
       setGeneratingDescription(false);
+    }
+  };
+
+  const validateCurrentStep = (currentStep: number): boolean => {
+    switch (currentStep) {
+      case 1:
+        if (!formData.name || formData.name.trim().length < 3) {
+          toast({
+            title: "PG Name Required",
+            description: "Please enter a PG name (at least 3 characters)",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.gender || !formData.roomType) {
+          toast({
+            title: "Selection Missing",
+            description: "Please select gender preference and room type",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      case 2:
+        if (!formData.address?.trim()) {
+          toast({
+            title: "Address Required",
+            description: "Please enter full street address",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.city?.trim() || !formData.state?.trim() || !formData.pincode?.trim()) {
+          toast({
+            title: "Incomplete Location",
+            description: "Please fill in City, State, and Pincode",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!/^\d{6}$/.test(formData.pincode.trim())) {
+          toast({
+            title: "Invalid Pincode",
+            description: "Please enter a valid 6-digit postal pincode",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      case 3:
+        if (!formData.rent || parseInt(formData.rent) <= 0) {
+          toast({
+            title: "Monthly Rent Required",
+            description: "Please enter a valid monthly rent amount",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.deposit || parseInt(formData.deposit) < 0) {
+          toast({
+            title: "Security Deposit Required",
+            description: "Please enter the security deposit amount",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.availableBeds || parseInt(formData.availableBeds) < 1) {
+          toast({
+            title: "Available Beds Required",
+            description: "Please enter at least 1 available bed",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      case 4:
+        if (uploadedImages.length < 3) {
+          toast({
+            title: "Minimum 3 Photos Required",
+            description: `You have uploaded ${uploadedImages.length} photo(s). Please add at least 3 photos before continuing.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (uploadedImages.length > 10) {
+          toast({
+            title: "Too Many Photos",
+            description: "Maximum 10 photos allowed. Please remove extra photos.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      default:
+        return true;
     }
   };
 
@@ -361,6 +462,7 @@ const PostRoom = () => {
           smokingAllowed: false,
           petsAllowed: false,
           customRules: formData.rules || null,
+          is_ai_generated: formData.isAiGenerated,
         },
         maintenance_charges: formData.maintenanceCharges ? parseInt(formData.maintenanceCharges) : 0,
         electricity_charges: formData.electricityCharges || "As per usage",
@@ -1108,7 +1210,11 @@ const PostRoom = () => {
               {step < totalSteps ? (
                 <Button
                   type="button"
-                  onClick={() => setStep(Math.min(totalSteps, step + 1))}
+                  onClick={() => {
+                    if (validateCurrentStep(step)) {
+                      setStep(Math.min(totalSteps, step + 1));
+                    }
+                  }}
                   disabled={submitting}
                 >
                   Next Step

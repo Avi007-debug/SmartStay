@@ -5,6 +5,7 @@ import os
 import json
 import requests
 import math
+import re
 
 # AI adapter
 from ai_provider import ai

@@ -734,10 +734,10 @@ const PGDetail = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-lg">About This PG</h3>
-                      {pgData.description && (
-                        <Badge variant="secondary" className="gap-1">
-                          <Sparkles className="h-3 w-3" />
-                          AI Enhanced
+                      {(pgData?.rules?.is_ai_generated || pgData?.is_ai_generated) && (
+                        <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary border-primary/20">
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          AI Generated Description
                         </Badge>
                       )}
                     </div>

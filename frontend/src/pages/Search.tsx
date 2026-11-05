@@ -20,7 +20,7 @@ import { PGCardSkeleton } from "@/components/SkeletonLoaders";
 
 const Search = () => {
   const { toast } = useToast();
-  const [budget, setBudget] = useState([5000, 15000]);
+  const [budget, setBudget] = useState([0, 20000]);
   const [maxDistance, setMaxDistance] = useState([5]);
   const [showFilters, setShowFilters] = useState(false);
   const [pgListings, setPgListings] = useState<any[]>([]);
@@ -90,7 +90,7 @@ const Search = () => {
   };
 
   const handleClearFilters = () => {
-    setBudget([5000, 15000]);
+    setBudget([0, 20000]);
     setMaxDistance([5]);
     setSelectedGender("any");
     setVerifiedOnly(false);
@@ -129,7 +129,7 @@ const Search = () => {
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold mb-3">Budget Range</h3>
-        <Slider value={budget} onValueChange={setBudget} min={2000} max={30000} step={500} className="mb-2" />
+        <Slider value={budget} onValueChange={setBudget} min={0} max={30000} step={500} className="mb-2" />
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>₹{budget[0].toLocaleString()}</span>
           <span>₹{budget[1].toLocaleString()}</span>
