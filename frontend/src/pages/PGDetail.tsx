@@ -781,7 +781,7 @@ const PGDetail = () => {
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Deposit</p>
-                          <p className="font-medium">Γé╣{pgData.deposit}</p>
+                          <p className="font-medium">₹{pgData.deposit}</p>
                         </div>
                       </div>
                     </div>
@@ -796,7 +796,7 @@ const PGDetail = () => {
                         <DollarSign className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Monthly Rent</p>
-                          <p className="font-semibold text-lg">Γé╣{pgData.rent?.toLocaleString()}</p>
+                          <p className="font-semibold text-lg">₹{pgData.rent?.toLocaleString()}</p>
                         </div>
                       </div>
                       
@@ -804,7 +804,7 @@ const PGDetail = () => {
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Security Deposit</p>
-                          <p className="font-semibold text-lg">Γé╣{pgData.deposit?.toLocaleString()}</p>
+                          <p className="font-semibold text-lg">₹{pgData.deposit?.toLocaleString()}</p>
                         </div>
                       </div>
 
@@ -813,7 +813,7 @@ const PGDetail = () => {
                           <Wrench className="h-5 w-5 text-primary" />
                           <div>
                             <p className="text-sm text-muted-foreground">Maintenance Charges</p>
-                            <p className="font-semibold">Γé╣{Number(pgData.maintenance_charges).toLocaleString()}/month</p>
+                            <p className="font-semibold">₹{Number(pgData.maintenance_charges).toLocaleString()}/month</p>
                           </div>
                         </div>
                       )}
@@ -1309,7 +1309,18 @@ const PGDetail = () => {
                       <Button 
                         variant="outline" 
                         className="border-green-500 text-green-700 hover:bg-green-50"
-                        onClick={() => window.open(pgData.whatsapp_group_link, '_blank')}
+                        onClick={() => {
+                          let link = pgData.whatsapp_group_link?.trim();
+                          if (!link) return;
+                          // If owner entered a plain phone number, open wa.me
+                          if (/^[0-9+ ]+$/.test(link)) {
+                            const cleanPhone = link.replace(/[^0-9]/g, '');
+                            link = https://wa.me/;
+                          } else if (!/^https?:\/\//i.test(link)) {
+                            link = https://;
+                          }
+                          window.open(link, '_blank', 'noopener,noreferrer');
+                        }}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Join WhatsApp Group
@@ -1327,7 +1338,7 @@ const PGDetail = () => {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <p className="text-3xl font-bold text-primary mb-2">
-                    Γé╣{pgData.rent}<span className="text-base text-muted-foreground font-normal">/month</span>
+                    ₹{pgData.rent}<span className="text-base text-muted-foreground font-normal">/month</span>
                   </p>
                   {pgData.available_beds > 0 ? (
                     <Badge variant="secondary" className="bg-success/10 text-success">

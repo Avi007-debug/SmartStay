@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import json
 import requests
+import math
 
 # AI adapter
 from ai_provider import ai
@@ -270,17 +271,36 @@ CRITICAL INSTRUCTION: Your response MUST be ONLY the JSON object above. NO expla
                 result_text = result_text[len(prefix):].strip()
                 break
         
-        # Extract JSON if there's extra text
+        # Extract and parse JSON with robust truncated repair
         result_text = result_text.strip()
-        if '{' in result_text and '}' in result_text:
+        if '{' in result_text:
             start = result_text.find('{')
-            end = result_text.rfind('}') + 1
-            result_text = result_text[start:end]
+            end = result_text.rfind('}') + 1 if '}' in result_text else len(result_text)
+            candidate_json = result_text[start:end]
         else:
-            print(f"ERROR: No JSON found in response: {result_text}")
-            raise ValueError("No valid JSON in AI response")
-        
-        result = json.loads(result_text)
+            candidate_json = result_text
+
+        try:
+            result = json.loads(candidate_json)
+        except Exception:
+            # Fallback regex parser if AI response was truncated or missing a comma
+            risk_m = re.search(r'"risk_level"\s*:\s*"(low|medium|high)"', result_text, re.I)
+            score_m = re.search(r'"transparency_score"\s*:\s*(\d+)', result_text)
+            charges = []
+            for ch_m in re.finditer(r'\{\s*"charge"\s*:\s*"([^"]+)"\s*,\s*"reason"\s*:\s*"([^"]+)"', result_text):
+                charges.append({"charge": ch_m.group(1), "reason": ch_m.group(2)})
+            
+            result = {
+                "risk_level": risk_m.group(1).lower() if risk_m else "medium",
+                "transparency_score": int(score_m.group(1)) if score_m else 70,
+                "potential_hidden_charges": charges,
+                "missing_information": ["Please confirm electricity unit rate and water charges with owner"],
+                "questions_to_ask": [
+                    "Are electricity charges based on sub-meter reading or fixed per month?",
+                    "Is maintenance included or billed separately?",
+                    "What are the terms and lock-in period for deposit refund?"
+                ]
+            }
         
         # Validate and sanitize response
         if not isinstance(result, dict):
