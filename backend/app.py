@@ -418,8 +418,11 @@ def estimate_travel_time():
         
         # Geocode addresses if coordinates are not provided directly
         if (not from_coords or not from_coords.get('lat')) or (not to_coords or not to_coords.get('lat')):
-            if not from_address or not to_address:
-                return jsonify({"error": "Please provide both from and to locations."}), 400
+            # If coordinates are missing and text address is also missing, check if one of them is provided
+            if not from_coords.get('lat') and not from_address:
+                from_address = "Bangalore, Karnataka, India"
+            if not to_coords.get('lat') and not to_address:
+                return jsonify({"error": "Please enter a destination (e.g., college name, metro station)."}), 400
 
             geocode_url = "https://api.openrouteservice.org/geocode/search"
             headers = {"Authorization": OPENROUTE_API_KEY}

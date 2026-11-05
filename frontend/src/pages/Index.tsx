@@ -56,19 +56,16 @@ const Index = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       
-      {/* Hero Section with modern campus backdrop & glassmorphism */}
-      <section className="relative overflow-hidden py-24 md:py-36 bg-slate-900">
-        {/* Real architectural campus background image */}
+      {/* Hero Section with Vibrant Original Brand Gradient + Subtle Student Room Background */}
+      <section className="relative overflow-hidden gradient-hero py-20 md:py-32">
+        {/* Subtle high-quality modern apartment / student room overlay with gentle zoom motion */}
         <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-25 scale-105 transform duration-1000"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-15 mix-blend-overlay transition-transform duration-10000 hover:scale-105"
           style={{ 
-            backgroundImage: "url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=80')" 
+            backgroundImage: "url('https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=2000&q=80')" 
           }}
         />
-        {/* Dynamic mesh gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-primary/85 via-sky-900/80 to-slate-950/90 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,165,0,0.15),transparent_50%)]" />
-
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center text-white animate-fade-in-up">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">

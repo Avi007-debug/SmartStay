@@ -52,14 +52,11 @@ export const TravelTimeEstimator = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reqBody),
       });
-      if (!response.ok) {
-        throw new Error('Failed to fetch travel time');
-      }
       
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       
-      if (data.error) {
-        setError(data.error);
+      if (!response.ok || data.error) {
+        setError(data.error || 'Could not find a route for this destination. Please try adding city/area.');
         setTravelModes([]);
       } else {
         setTravelModes(data.modes || []);
