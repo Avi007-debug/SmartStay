@@ -341,14 +341,12 @@ CRITICAL INSTRUCTION: Your response MUST be ONLY the JSON object above. NO expla
 @app.route('/api/ai/travel-time', methods=['POST'])
 def estimate_travel_time():
     """
-    Estimate travel time between PG and destination using OpenRouteService
-    Expected input: { "from_address": "Pune, Maharashtra", "to_address": "College Road, Pune", "modes": [...] }
-    OR { "from": {"lat": 28.6139, "lng": 77.2090}, "to": {"lat": 28.5355, "lng": 77.3910}, "modes": [...] }
-    
-    Uses OpenRouteService API for both geocoding and routing
+    Estimate travel time between PG and destination using OpenRouteService.
+    Expected input: { "from_address": "...", "to_address": "...", "modes": [...] }
+    OR { "from": {"lat": 12.92, "lng": 77.49}, "to": {"lat": 12.93, "lng": 77.50}, "modes": [...] }
     """
     try:
-        data = request.json
+        data = request.json or {}
         from_coords = data.get('from', {})
         to_coords = data.get('to', {})
         from_address = data.get('from_address')
@@ -359,166 +357,147 @@ def estimate_travel_time():
         
         if not OPENROUTE_API_KEY or OPENROUTE_API_KEY == 'your_openroute_api_key_here':
             return jsonify({
-                "modes": [
-                    {"mode": "walking", "duration": 15, "distance": 1200},
-                    {"mode": "cycling", "duration": 8, "distance": 1500},
-                    {"mode": "driving", "duration": 5, "distance": 2100}
-                ],
-                "service": "Demo Mode - Add OPENROUTE_API_KEY to .env"
-            })
+                "error": "OpenRouteService API key is not configured on the server."
+            }), 503
         
-        # Geocode addresses if provided
-        if from_address and to_address:
+        # Geocode addresses if coordinates are not provided directly
+        if (not from_coords or not from_coords.get('lat')) or (not to_coords or not to_coords.get('lat')):
+            if not from_address or not to_address:
+                return jsonify({"error": "Please provide both from and to locations."}), 400
+
             geocode_url = "https://api.openrouteservice.org/geocode/search"
             headers = {"Authorization": OPENROUTE_API_KEY}
             
-            # Helper function to try geocoding with fallback addresses
-            def geocode_with_fallback(address, label):
-                # Try original address first
-                addresses_to_try = [address]
+            def geocode_location(address, label):
+                # Clean address and enforce Bangalore/India context to prevent matching international locations
+                raw = address.strip()
+                candidates = []
                 
-                # Create simpler fallback versions
-                # Extract city/area from complex addresses
-                if ',' in address:
-                    parts = [p.strip() for p in address.split(',')]
-                    # Try last 2-3 parts (usually city, state)
-                    if len(parts) >= 2:
-                        addresses_to_try.append(f"{parts[-2]}, {parts[-1]}")
-                    if len(parts) >= 3:
-                        addresses_to_try.append(f"{parts[-3]}, {parts[-2]}, {parts[-1]}")
+                # If city not mentioned, enforce Bangalore
+                if 'bangalore' not in raw.lower() and 'bengaluru' not in raw.lower():
+                    candidates.append(f"{raw}, Bangalore, Karnataka, India")
+                candidates.append(f"{raw}, India" if 'india' not in raw.lower() else raw)
+                candidates.append(raw)
                 
-                for addr in addresses_to_try:
+                for query in candidates:
                     try:
-                        print(f"Trying to geocode {label}: {addr}")
-                        response = requests.get(
-                            geocode_url,
-                            params={"text": addr, "size": 1},
-                            headers=headers,
-                            timeout=10
-                        )
+                        print(f"Trying to geocode {label}: '{query}'")
+                        # Guardrail: Restrict to India (boundary.country=IND) and focus around RVCE/Bangalore coordinates
+                        params = {
+                            "text": query,
+                            "size": 1,
+                            "boundary.country": "IND",
+                            "focus.point.lat": 12.9250,
+                            "focus.point.lon": 77.4985
+                        }
+                        response = requests.get(geocode_url, params=params, headers=headers, timeout=8)
                         print(f"Geocode {label} status: {response.status_code}")
                         
                         if response.status_code == 200:
-                            data = response.json()
-                            if data.get('features') and len(data['features']) > 0:
-                                coords = data['features'][0]['geometry']['coordinates']
-                                result = {'lng': coords[0], 'lat': coords[1]}
-                                print(f"{label} coords: {result}")
-                                return result
-                    except Exception as e:
-                        print(f"Error geocoding {label} with '{addr}': {str(e)}")
+                            res_json = response.json()
+                            features = res_json.get('features', [])
+                            if features:
+                                coords = features[0]['geometry']['coordinates']
+                                return {'lng': coords[0], 'lat': coords[1]}
+                    except Exception as err:
+                        print(f"Geocoding error for {label} query '{query}': {err}")
                         continue
-                
                 return None
             
-            # Geocode 'from' address
-            from_coords = geocode_with_fallback(from_address, "'from'")
+            if not from_coords or not from_coords.get('lat'):
+                from_coords = geocode_location(from_address, "'from'")
+            if not to_coords or not to_coords.get('lat'):
+                to_coords = geocode_location(to_address, "'to'")
+            
             if not from_coords:
-                return jsonify({"error": f"Could not locate: {from_address}"}), 400
-            
-            # Geocode 'to' address
-            to_coords = geocode_with_fallback(to_address, "'to'")
+                return jsonify({"error": f"Could not locate starting point: {from_address}"}), 404
             if not to_coords:
-                return jsonify({"error": f"Could not locate: {to_address}"}), 400
-        
+                return jsonify({"error": f"Could not locate destination: {to_address}"}), 404
+
         # Validate coordinates
-        if not from_coords.get('lat') or not from_coords.get('lng'):
-            return jsonify({"error": "Missing 'from' coordinates"}), 400
-        if not to_coords.get('lat') or not to_coords.get('lng'):
-            return jsonify({"error": "Missing 'to' coordinates"}), 400
+        f_lat, f_lng = from_coords.get('lat'), from_coords.get('lng')
+        t_lat, t_lng = to_coords.get('lat'), to_coords.get('lng')
         
-        if OPENROUTE_API_KEY and OPENROUTE_API_KEY != 'your_openroute_api_key_here':
-            # Real API implementation
-            results = []
-            base_url = "https://api.openrouteservice.org/v2/directions"
-            
-            # Map frontend modes to OpenRouteService profiles
-            mode_mapping = {
-                'foot-walking': 'foot-walking',
-                'cycling-regular': 'cycling-regular', 
-                'driving-car': 'driving-car',
-                'walking': 'foot-walking',
-                'cycling': 'cycling-regular',
-                'driving': 'driving-car'
-            }
-            
-            headers = {
-                "Authorization": OPENROUTE_API_KEY,
-                "Content-Type": "application/json"
-            }
-            
-            for mode in modes:
-                try:
-                    profile = mode_mapping.get(mode, mode)
-                    url = f"{base_url}/{profile}"
-                    
-                    payload = {
-                        "coordinates": [
-                            [from_coords['lng'], from_coords['lat']],  # OpenRouteService uses [lng, lat]
-                            [to_coords['lng'], to_coords['lat']]
-                        ]
-                    }
-                    
-                    response = requests.post(url, json=payload, headers=headers, timeout=10)
-                    
-                    if response.status_code == 200:
-                        route_data = response.json()
-                        
-                        if 'routes' in route_data and len(route_data['routes']) > 0:
-                            route = route_data['routes'][0]
-                            summary = route.get('summary', {})
-                            
-                            # Convert seconds to minutes
-                            duration_min = round(summary.get('duration', 0) / 60)
-                            # Distance in meters
-                            distance_m = round(summary.get('distance', 0))
-                            
-                            results.append({
-                                "mode": mode.replace('foot-walking', 'walking').replace('cycling-regular', 'cycling').replace('driving-car', 'driving'),
-                                "duration": duration_min,  # in minutes
-                                "distance": distance_m  # in meters
-                            })
-                    else:
-                        print(f"OpenRouteService API error for {mode}: {response.status_code}")
-                        
-                except Exception as e:
-                    print(f"Error fetching route for {mode}: {str(e)}")
-                    continue
-            
-            if results:
-                return jsonify({
-                    "modes": results,
-                    "service": "OpenRouteService",
-                    "from": from_coords,
-                    "to": to_coords
-                })
+        if not f_lat or not f_lng or not t_lat or not t_lng:
+            return jsonify({"error": "Valid latitude and longitude coordinates are required."}), 400
+
+        # Guardrail: Haversine distance check to detect erroneous cross-country jumps
+        def haversine_km(lat1, lon1, lat2, lon2):
+            R = 6371.0
+            dlat = math.radians(lat2 - lat1)
+            dlon = math.radians(lon2 - lon1)
+            a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+            return 2 * R * math.asin(math.sqrt(a))
         
-        # Fallback: Return estimated data if no API key or API fails
-        return jsonify({
-            "modes": [
-                {
-                    "mode": "walking",
-                    "duration": 15,
-                    "distance": 1200
-                },
-                {
-                    "mode": "cycling",
-                    "duration": 8,
-                    "distance": 1500
-                },
-                {
-                    "mode": "driving",
-                    "duration": 5,
-                    "distance": 2100
+        crow_dist_km = haversine_km(f_lat, f_lng, t_lat, t_lng)
+        print(f"Estimated straight-line distance: {crow_dist_km:.2f} km")
+        
+        if crow_dist_km > 75.0:
+            return jsonify({
+                "error": f"Locations appear too far apart ({round(crow_dist_km, 1)} km). Please verify that both locations are within the same city."
+            }), 400
+
+        # Call OpenRouteService Directions API (No fake fallback demo data!)
+        results = []
+        base_url = "https://api.openrouteservice.org/v2/directions"
+        mode_mapping = {
+            'foot-walking': 'foot-walking',
+            'cycling-regular': 'cycling-regular', 
+            'driving-car': 'driving-car',
+            'walking': 'foot-walking',
+            'cycling': 'cycling-regular',
+            'driving': 'driving-car'
+        }
+        
+        headers = {
+            "Authorization": OPENROUTE_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        for mode in modes:
+            try:
+                profile = mode_mapping.get(mode, mode)
+                url = f"{base_url}/{profile}"
+                payload = {
+                    "coordinates": [
+                        [from_coords['lng'], from_coords['lat']],
+                        [to_coords['lng'], to_coords['lat']]
+                    ]
                 }
-            ],
-            "service": "OpenRouteService (Demo Mode - Add API key to .env)",
+                
+                resp = requests.post(url, json=payload, headers=headers, timeout=10)
+                if resp.status_code == 200:
+                    route_data = resp.json()
+                    routes = route_data.get('routes', [])
+                    if routes:
+                        summary = routes[0].get('summary', {})
+                        results.append({
+                            "mode": mode.replace('foot-walking', 'walking').replace('cycling-regular', 'cycling').replace('driving-car', 'driving'),
+                            "duration": round(summary.get('duration', 0) / 60),
+                            "distance": round(summary.get('distance', 0))
+                        })
+                else:
+                    print(f"OpenRouteService directions API returned {resp.status_code} for {mode}: {resp.text}")
+            except Exception as e:
+                print(f"Routing error for mode {mode}: {e}")
+                continue
+
+        if not results:
+            return jsonify({
+                "error": "OpenRouteService routing unavailable for the selected route. Please check destination details."
+            }), 502
+
+        return jsonify({
+            "modes": results,
+            "service": "OpenRouteService",
             "from": from_coords,
             "to": to_coords
         })
-        
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Unexpected error in estimate_travel_time: {e}")
+        return jsonify({"error": f"Internal travel time error: {str(e)}"}), 500
+
 
 
 @app.route('/api/ai/generate-description', methods=['POST'])

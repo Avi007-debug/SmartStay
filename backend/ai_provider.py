@@ -6,7 +6,7 @@ load_dotenv()
 
 
 class AIProvider:
-    """Groq-only AI adapter. Default model is `llama-3.1-8b-instant`.
+    """Groq-only AI adapter. Default model is `llama-3.3-70b-versatile`.
 
     Uses the Groq SDK with chat.completions.create() API.
     """
@@ -14,7 +14,7 @@ class AIProvider:
     def __init__(self):
         self.provider = 'groq'
         self.client = None
-        self.model_name = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
+        self.model_name = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 
         try:
             import groq

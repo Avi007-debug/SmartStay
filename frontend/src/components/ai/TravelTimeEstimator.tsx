@@ -36,19 +36,22 @@ export const TravelTimeEstimator = ({
     setError(null);
 
     try {
-      // Use PG location string for geocoding, or fallback to default
-      const fromLocation = pgLocation || "Delhi, India";
-      
+      const reqBody: any = {
+        to_address: destination,
+        modes: ['foot-walking', 'cycling-regular', 'driving-car']
+      };
+
+      if (pgCoordinates && pgCoordinates.lat && pgCoordinates.lng) {
+        reqBody.from = pgCoordinates;
+      } else {
+        reqBody.from_address = pgLocation || 'Bangalore, Karnataka, India';
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/ai/travel-time`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from_address: fromLocation,
-          to_address: destination,
-          modes: ['foot-walking', 'cycling-regular', 'driving-car']
-        }),
+        body: JSON.stringify(reqBody),
       });
-
       if (!response.ok) {
         throw new Error('Failed to fetch travel time');
       }
